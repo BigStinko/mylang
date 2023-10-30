@@ -20,6 +20,10 @@ type Expression interface {
 	expressionNode()   // dummy method
 }
 
+// The program is an array of statments that represent the code, where every
+// statement has a subtree of expressions be they identifiers, literals, or more
+// complex expressions. Every statment can be a expression statement, return
+// statment, or a let statment.
 type Program struct {
 	Statements []Statement
 }
@@ -52,6 +56,7 @@ type Identifier struct {
 func (i *Identifier) expressionNode() {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string { return i.Value }
+
 
 // let statements have a let token, an identifier, and an expression
 type LetStatement struct {
@@ -118,3 +123,54 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
+// Token for token.INT and value for integer value 
+type IntegerLiteral struct {
+	Token token.Token
+	Value int64
+}
+// implements Expression and Node interface
+func (il *IntegerLiteral) expressionNode() {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+func (il *IntegerLiteral) String() string { return il.Token.Literal }
+
+// holds operator token and expression it operates on
+type PrefixExpression struct {
+	Token token.Token
+	Operator string
+	Right Expression
+}
+// implements Expression and Node inteface
+func (pe *PrefixExpression) expressionNode() {}
+func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
+func (pe *PrefixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(pe.Operator)
+	out.WriteString(pe.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
+
+//
+type InfixExpression struct {
+	Token token.Token
+	Operator string
+	Left Expression
+	Right Expression
+}
+
+func (ie *InfixExpression) expressionNode() {}
+func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *InfixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString(" " + ie.Operator + " ")
+	out.WriteString(ie.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
