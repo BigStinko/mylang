@@ -39,6 +39,7 @@ const (
 	CALL
 )
 
+// precedences for operators
 var precedences = map[token.TokenType]int{
 	token.EQ: EQUALS,
 	token.NOT_EQ: EQUALS,
@@ -84,9 +85,12 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		Token: p.currentToken,
 		Value: p.currentToken.Type == token.TRUE,
-	}
+	} 
 }
 
+// a parsePrefixFunction used when encountering a urnary operator
+// creates a prefixExpression node, sets its operator, and parses
+// the expression to the right of the operator
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.PrefixExpression{
 		Token: p.currentToken,
@@ -115,6 +119,8 @@ func (p *Parser) currentPrecedence() int {
 	return LOWEST
 }
 
+// constructs the expression to the right of the operator for the given
+// expression.
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.InfixExpression{
 		Token: p.currentToken,
@@ -122,11 +128,72 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 		Left: left,
 	}
 	
-	var precedence int = p.currentPrecedence()
+	var precedence int = p.currentPrecedence() // saves the precedence of the current operator
+	p.advanceTokens()  // goes to the start of the right expression
+	expression.Right = p.parseExpression(precedence) // generates the expression tree for the
+	                                                 // right side of the infix expression
+	return expression
+}
+
+func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.advanceTokens()
-	expression.Right = p.parseExpression(precedence)
+
+	expression := p.parseExpression(LOWEST)
+
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
 
 	return expression
+}
+
+func (p *Parser) parseIfExpression() ast.Expression {
+	expression := &ast.IfExpression{Token: p.currentToken}
+
+	if !p.expectedToken(token.OPAREN) {
+		return nil
+	}
+
+	p.advanceTokens()
+	expression.Condition = p.parseExpression(LOWEST)
+
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
+
+	if !p.expectedToken(token.OBRACE) {
+		return nil
+	}
+
+	expression.Consequence = p.parseBlockStatement()
+
+	if p.nextToken.Type == token.ELSE {
+		p.advanceTokens()
+
+		if !p.expectedToken(token.OBRACE) {
+			return nil
+		}
+
+		expression.Alternative = p.parseBlockStatement()
+	}
+
+	return expression
+}
+
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	block := &ast.BlockStatement{Token: p.currentToken}
+	block.Statements = []ast.Statement{}
+
+	p.advanceTokens()
+
+	for p.currentToken.Type != token.CBRACE && p.currentToken.Type != token.EOF {
+		statement := p.parseStatement()
+		if statement != nil {
+			block.Statements = append(block.Statements, statement)
+		}
+		p.advanceTokens()
+	}
+	return block
 }
 
 // makes and returns a parser for the given lexer
@@ -143,6 +210,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral
 	p.prefixParseFunctions[token.BANG] = p.parsePrefixExpression
 	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
+	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
+	p.prefixParseFunctions[token.IF] = p.parseIfExpression
 
 	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
 	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
@@ -165,7 +234,7 @@ func (p *Parser) Errors() []string {
 }
 
 func (p *Parser) expectedTokenError(t token.TokenType) {
-	var msg string = fmt.Sprintf("exprected next token to be %s, got %s instead",
+	var msg string = fmt.Sprintf("expected next token to be %s, got %s instead",
 		t, p.nextToken.Type)
 	p.errors = append(p.errors, msg)
 }
@@ -227,6 +296,18 @@ func (p *Parser) noPrefixParseFunctionError(t token.TokenType) {
 	p.errors = append(p.errors, msg)
 }
 
+// recursive function that constructs the ordering of expressions and operations based
+// on operator precedence. The current token becomes the left side of the
+// expression. The current token is set as the left expression and if the precedence of
+// the next operator is less than the current precedence of the expression then the 
+// function returns the current expression ie the original value in leftExpression. If
+// the precedence of the next operator is greater than the current expression then the
+// function needs to construct the expression to the right of the current expression and
+// it does this by calling the infix parse function with the leftExpression being the left
+// side of the binary operation. The leftExpression variable then holds the expression tree
+// that has been constructed from the start of the function and it goes until it reaches
+// a operator of less or equal precedence or a semicolon. When the function is first
+// called it is called with LOWEST precedence
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFunctions[p.currentToken.Type]
 
