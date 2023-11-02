@@ -13,5 +13,5 @@ func main() {
 	}
 
 	fmt.Printf("Hello %s, this is mylang\n", user.Username)
-	repl.StartREPL(os.Stdin, os.Stdout)
+	repl.Start(os.Stdin, os.Stdout)
 }

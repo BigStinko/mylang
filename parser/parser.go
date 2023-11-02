@@ -49,6 +49,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS: SUM,
 	token.SLASH: PRODUCT,
 	token.ASTERISK: PRODUCT,
+	token.OPAREN: CALL,
 }
 
 // used by the parser to walk through the sequence of tokens.
@@ -196,6 +197,93 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	return block
 }
 
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	identifiers := []*ast.Identifier{}
+
+	if p.nextToken.Type == token.CPAREN {
+		p.advanceTokens()
+		return identifiers
+	}
+
+	p.advanceTokens()
+
+	identifier := &ast.Identifier{
+		Token: p.currentToken,
+		Value: p.currentToken.Literal,
+	}
+	identifiers = append(identifiers, identifier)
+
+	for p.nextToken.Type == token.COMMA {
+		p.advanceTokens()
+		p.advanceTokens()
+
+		identifier := &ast.Identifier{
+			Token: p.currentToken,
+			Value: p.currentToken.Literal,
+		}
+		identifiers = append(identifiers, identifier)
+	}
+
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
+
+	return identifiers
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	literal := &ast.FunctionLiteral{Token: p.currentToken}
+
+	if !p.expectedToken(token.OPAREN) {
+		return nil
+	}
+
+	literal.Parameters = p.parseFunctionParameters()
+
+	if !p.expectedToken(token.OBRACE) {
+		return nil
+	}
+
+	literal.Body = p.parseBlockStatement()
+
+	return literal
+}
+
+func (p *Parser) parseCallArguments() []ast.Expression {
+	args := []ast.Expression{}
+
+	if p.nextToken.Type == token.CPAREN {
+		p.advanceTokens()
+		return args
+	}
+
+	p.advanceTokens()
+	args = append(args, p.parseExpression(LOWEST))
+
+	for p.nextToken.Type == token.COMMA {
+		p.advanceTokens()
+		p.advanceTokens()
+		args = append(args, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
+
+	return args
+}
+
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	expression := &ast.CallExpression{
+		Token: p.currentToken,
+		Function: function,
+	}
+
+	expression.Arguments = p.parseCallArguments()
+	
+	return expression
+}
+
 // makes and returns a parser for the given lexer
 func New(l *lexer.Lexer) *Parser {
 	var p *Parser = &Parser{
@@ -212,6 +300,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
 	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
 	p.prefixParseFunctions[token.IF] = p.parseIfExpression
+	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
 
 	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
 	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
@@ -222,6 +311,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFunctions[token.NOT_EQ] = p.parseInfixExpression
 	p.infixParseFunctions[token.LT] = p.parseInfixExpression
 	p.infixParseFunctions[token.GT] = p.parseInfixExpression
+	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
 
 	p.advanceTokens()
 	p.advanceTokens()
@@ -270,10 +360,14 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	for p.currentToken.Type != token.SCOLON {
+	p.advanceTokens()
+
+	statement.Value = p.parseExpression(LOWEST)
+
+	if p.nextToken.Type == token.SCOLON {
 		p.advanceTokens()
 	}
-	
+
 	return statement
 }
 
@@ -284,9 +378,11 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 
 	p.advanceTokens()
 
-	for p.currentToken.Type != token.SCOLON {
+	statement.ReturnValue = p.parseExpression(LOWEST)
+
+	if p.nextToken.Type == token.SCOLON {
 		p.advanceTokens()
-	}
+	}	
 
 	return statement
 }
