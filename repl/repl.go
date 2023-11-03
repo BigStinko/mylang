@@ -5,9 +5,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"mylang/lexer"
-	"mylang/parser"
 	"mylang/ast"
+	"mylang/evaluator"
+	"mylang/lexer"
+	"mylang/object"
+	"mylang/parser"
 )
 
 const PROMPT = ">> "
@@ -34,15 +36,17 @@ func Start(in io.Reader, out io.Writer) {
 		var line string = scanner.Text()
 		l := lexer.New(line)
 		p := parser.New(l)
-
 		var program *ast.Program = p.ParseProgram()
+		
 		if len(p.Errors()) != 0 {
 			printParseErrors(out, p.Errors())
 			continue
 		}
 
-		io.WriteString(out, program.String())
-		io.WriteString(out, "\n")
+		var evaluated object.Object = evaluator.Evaluate(program)
+		if evaluated != nil {
+			io.WriteString(out, evaluated.Inspect())
+			io.WriteString(out, "\n")
+		}
 	}
-
 }
