@@ -82,6 +82,7 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return literal
 }
 
+// creates a boolean literal from the current token
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		Token: p.currentToken,
@@ -105,6 +106,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	return expression
 }
 
+// returns the precedence of the next token
 func (p *Parser) nextPrecedence() int {
 	if precedence, ok := precedences[p.nextToken.Type]; ok {
 		return precedence
@@ -112,6 +114,7 @@ func (p *Parser) nextPrecedence() int {
 	return LOWEST
 }
 
+// returns the precedence of the current token
 func (p *Parser) currentPrecedence() int {
 	if precedence, ok := precedences[p.currentToken.Type]; ok {
 		return precedence
@@ -136,6 +139,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	return expression
 }
 
+// used to parse expressions in parenthesis
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.advanceTokens()
 
@@ -148,6 +152,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return expression
 }
 
+// constructs an if and if/else expression
 func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.currentToken}
 
@@ -181,6 +186,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	return expression
 }
 
+// parses the statements in brakets
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	block := &ast.BlockStatement{Token: p.currentToken}
 	block.Statements = []ast.Statement{}
@@ -197,6 +203,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	return block
 }
 
+// used to parse the parameters of a function. Makes sure they are
+// comma separated and bounded by parenthesis
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
 
@@ -231,6 +239,8 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	return identifiers
 }
 
+// returns a function literal expression, and parses the parameters
+// and body of the function
 func (p *Parser) parseFunctionLiteral() ast.Expression {
 	literal := &ast.FunctionLiteral{Token: p.currentToken}
 
@@ -249,6 +259,7 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return literal
 }
 
+// parses the arguments in a call expression
 func (p *Parser) parseCallArguments() []ast.Expression {
 	args := []ast.Expression{}
 
@@ -273,6 +284,7 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	return args
 }
 
+// creates a call expression node and parses the call arguments
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	expression := &ast.CallExpression{
 		Token: p.currentToken,
@@ -282,41 +294,6 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	expression.Arguments = p.parseCallArguments()
 	
 	return expression
-}
-
-// makes and returns a parser for the given lexer
-func New(l *lexer.Lexer) *Parser {
-	var p *Parser = &Parser{
-		l: l,
-		errors: []string{},
-	}
-
-	p.prefixParseFunctions = make(map[token.TokenType]prefixParseFunction)
-	p.prefixParseFunctions[token.IDENT] = p.parseIdentifier
-	p.prefixParseFunctions[token.INT] = p.parseIntegerLiteral
-	p.prefixParseFunctions[token.TRUE] = p.parseBooleanLiteral
-	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral
-	p.prefixParseFunctions[token.BANG] = p.parsePrefixExpression
-	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
-	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
-	p.prefixParseFunctions[token.IF] = p.parseIfExpression
-	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
-
-	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
-	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
-	p.infixParseFunctions[token.MINUS] = p.parseInfixExpression
-	p.infixParseFunctions[token.SLASH] = p.parseInfixExpression
-	p.infixParseFunctions[token.ASTERISK] = p.parseInfixExpression
-	p.infixParseFunctions[token.EQ] = p.parseInfixExpression
-	p.infixParseFunctions[token.NOT_EQ] = p.parseInfixExpression
-	p.infixParseFunctions[token.LT] = p.parseInfixExpression
-	p.infixParseFunctions[token.GT] = p.parseInfixExpression
-	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
-
-	p.advanceTokens()
-	p.advanceTokens()
-
-	return p
 }
 
 func (p *Parser) Errors() []string {
@@ -393,8 +370,7 @@ func (p *Parser) noPrefixParseFunctionError(t token.TokenType) {
 }
 
 // recursive function that constructs the ordering of expressions and operations based
-// on operator precedence. The current token becomes the left side of the
-// expression. The current token is set as the left expression and if the precedence of
+// on operator precedence. The current token is set as the left expression and if the precedence of
 // the next operator is less than the current precedence of the expression then the 
 // function returns the current expression ie the original value in leftExpression. If
 // the precedence of the next operator is greater than the current expression then the
@@ -403,7 +379,7 @@ func (p *Parser) noPrefixParseFunctionError(t token.TokenType) {
 // side of the binary operation. The leftExpression variable then holds the expression tree
 // that has been constructed from the start of the function and it goes until it reaches
 // a operator of less or equal precedence or a semicolon. When the function is first
-// called it is called with LOWEST precedence
+// called it is called with LOWEST precedence 
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFunctions[p.currentToken.Type]
 
@@ -429,7 +405,7 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return leftExpression
 }
 
-// generates the ExpressionStatement Node for the following statment in the
+// generates the ExpressionStatement Node for the following expression in the
 // program
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	statement := &ast.ExpressionStatement{Token: p.currentToken}
@@ -472,3 +448,39 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 	return program
 }
+
+// makes and returns a parser for the given lexer
+func New(l *lexer.Lexer) *Parser {
+	var p *Parser = &Parser{
+		l: l,
+		errors: []string{},
+	}
+
+	p.prefixParseFunctions = make(map[token.TokenType]prefixParseFunction)
+	p.prefixParseFunctions[token.IDENT] = p.parseIdentifier
+	p.prefixParseFunctions[token.INT] = p.parseIntegerLiteral
+	p.prefixParseFunctions[token.TRUE] = p.parseBooleanLiteral
+	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral
+	p.prefixParseFunctions[token.BANG] = p.parsePrefixExpression
+	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
+	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
+	p.prefixParseFunctions[token.IF] = p.parseIfExpression
+	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
+
+	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
+	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
+	p.infixParseFunctions[token.MINUS] = p.parseInfixExpression
+	p.infixParseFunctions[token.SLASH] = p.parseInfixExpression
+	p.infixParseFunctions[token.ASTERISK] = p.parseInfixExpression
+	p.infixParseFunctions[token.EQ] = p.parseInfixExpression
+	p.infixParseFunctions[token.NOT_EQ] = p.parseInfixExpression
+	p.infixParseFunctions[token.LT] = p.parseInfixExpression
+	p.infixParseFunctions[token.GT] = p.parseInfixExpression
+	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
+
+	p.advanceTokens()
+	p.advanceTokens()
+
+	return p
+}
+
