@@ -45,6 +45,20 @@ func (l *Lexer) readNumber() string {
 	return l.input[startPos:l.position]
 }
 
+// extracts a string from the lexer surrounded by quotations
+func (l *Lexer) readString() string {
+	var position int = l.position + 1
+
+	for {
+		l.readChar()
+		if l.char == '"' || l.char == 0 {
+			break
+		}
+	}
+
+	return l.input[position:l.position]
+}
+
 // reads through any identifier/keyword in the input string and
 // returns it 
 func (l *Lexer) readIdentifier() string {
@@ -90,8 +104,13 @@ func (l *Lexer) NextToken() (tok token.Token) {
 		} else {
 			tok = token.Token{Type: token.ASSIGN, Literal: string(l.char)}
 		}
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
 	case ';':
 		tok = token.Token{Type: token.SCOLON, Literal: string(l.char)}
+	case ':':
+		tok = token.Token{Type: token.COLON, Literal: string(l.char)}
 	case '(':
 		tok = token.Token{Type: token.OPAREN, Literal: string(l.char)}
 	case ')':
@@ -100,6 +119,10 @@ func (l *Lexer) NextToken() (tok token.Token) {
 		tok = token.Token{Type: token.OBRACE, Literal: string(l.char)}
 	case '}':
 		tok = token.Token{Type: token.CBRACE, Literal: string(l.char)}
+	case '[':
+		tok = token.Token{Type: token.OBRACKET, Literal: string(l.char)}
+	case ']':
+		tok = token.Token{Type: token.CBRACKET, Literal: string(l.char)}
 	case ',':
 		tok = token.Token{Type: token.COMMA, Literal: string(l.char)}
 	case '+':

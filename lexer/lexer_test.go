@@ -27,6 +27,11 @@ func TestNextToken(t *testing.T) {
 
 	10 == 10;
 	10 != 9;
+	"foo 
+	 bar"
+	"foo bar"
+	[1, 2];
+	{"foo": "bar"}
 	`
 
 	tests := []struct {
@@ -106,20 +111,35 @@ func TestNextToken(t *testing.T) {
 		{token.NOT_EQ, "!="},
 		{token.INT, "9"},
 		{token.SCOLON, ";"},
+		{token.STRING, "foo \n\t bar"},
+		{token.STRING, "foo bar"},
+		{token.OBRACKET, "["},
+		{token.INT, "1"},
+		{token.COMMA, ","},
+		{token.INT, "2"},
+		{token.CBRACKET, "]"},
+		{token.SCOLON, ";"},
+		{token.OBRACE, "{"},
+		{token.STRING, "foo"},
+		{token.COLON, ":"},
+		{token.STRING, "bar"},
+		{token.CBRACE, "}"},
 		{token.EOF, ""},
 	}
 
 	var l *Lexer = New(input)
 
-	for i, testToken := range tests {
+	for i, test := range tests {
 		var tok token.Token = l.NextToken()
 
-		if tok.Type != testToken.Type {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, testToken.Type, tok.Type)
+		if tok.Type != test.Type {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, test.Type, tok.Type)
 		}
 		
-		if tok.Literal != testToken.Literal {
-			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q", i, testToken.Literal, tok.Literal)
+		if tok.Literal != test.Literal {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q len=%d, got=%q len=%d",
+				i, test.Literal, len(test.Literal), tok.Literal, len(tok.Literal))
 		}
 	}
 }

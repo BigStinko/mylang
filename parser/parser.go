@@ -37,6 +37,7 @@ const (
 	PRODUCT
 	PREFIX
 	CALL
+	INDEX
 )
 
 // precedences for operators
@@ -50,6 +51,7 @@ var precedences = map[token.TokenType]int{
 	token.SLASH: PRODUCT,
 	token.ASTERISK: PRODUCT,
 	token.OPAREN: CALL,
+	token.OBRACKET: INDEX,
 }
 
 // used by the parser to walk through the sequence of tokens.
@@ -57,6 +59,24 @@ var precedences = map[token.TokenType]int{
 func (p *Parser) advanceTokens() {
 	p.currentToken = p.nextToken
 	p.nextToken = p.l.NextToken()
+}
+
+func (p *Parser) expectedTokenError(t token.TokenType) {
+	var msg string = fmt.Sprintf("expected next token to be %s, got %s instead",
+		t, p.nextToken.Type)
+	p.errors = append(p.errors, msg)
+}
+
+// used by the parser to evaluate the order of tokens in a statement/expression
+// determines if the expected token is the next token in the program
+func (p *Parser) expectedToken(t token.TokenType) bool {
+	if p.nextToken.Type == t {
+		p.advanceTokens()
+		return true
+	} else {
+		p.expectedTokenError(t)
+		return false
+	}
 }
 
 // prefix parse function for identifier tokens. Makes and returns an identifier expression
@@ -88,6 +108,47 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 		Token: p.currentToken,
 		Value: p.currentToken.Type == token.TRUE,
 	} 
+}
+
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Literal}
+}
+
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	list := []ast.Expression{}
+
+	if p.nextToken.Type == end {
+		p.advanceTokens()
+		return list
+	}
+
+	p.advanceTokens()
+	list = append(list, p.parseExpression(LOWEST))
+
+	for p.nextToken.Type == token.COMMA {
+		p.advanceTokens()
+		
+		if p.nextToken.Type == end {
+			break
+		}
+		
+		p.advanceTokens()
+		list = append(list, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectedToken(end) {
+		return nil
+	}
+
+	return list
+}
+
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	array := &ast.ArrayLiteral{Token: p.currentToken}
+
+	array.Elements = p.parseExpressionList(token.CBRACKET)
+
+	return array
 }
 
 // a parsePrefixFunction used when encountering a urnary operator
@@ -259,31 +320,6 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return literal
 }
 
-// parses the arguments in a call expression
-func (p *Parser) parseCallArguments() []ast.Expression {
-	args := []ast.Expression{}
-
-	if p.nextToken.Type == token.CPAREN {
-		p.advanceTokens()
-		return args
-	}
-
-	p.advanceTokens()
-	args = append(args, p.parseExpression(LOWEST))
-
-	for p.nextToken.Type == token.COMMA {
-		p.advanceTokens()
-		p.advanceTokens()
-		args = append(args, p.parseExpression(LOWEST))
-	}
-
-	if !p.expectedToken(token.CPAREN) {
-		return nil
-	}
-
-	return args
-}
-
 // creates a call expression node and parses the call arguments
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	expression := &ast.CallExpression{
@@ -291,8 +327,21 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 		Function: function,
 	}
 
-	expression.Arguments = p.parseCallArguments()
+	expression.Arguments = p.parseExpressionList(token.CPAREN)
 	
+	return expression
+}
+
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	expression := &ast.IndexExpression{Token: p.currentToken, Left: left}
+
+	p.advanceTokens()
+	expression.Index = p.parseExpression(LOWEST)
+
+	if !p.expectedToken(token.CBRACKET) {
+		return nil
+	}
+
 	return expression
 }
 
@@ -300,22 +349,33 @@ func (p *Parser) Errors() []string {
 	return p.errors
 }
 
-func (p *Parser) expectedTokenError(t token.TokenType) {
-	var msg string = fmt.Sprintf("expected next token to be %s, got %s instead",
-		t, p.nextToken.Type)
-	p.errors = append(p.errors, msg)
-}
+func (p *Parser) parseHashLiteral() ast.Expression {
+	hash := &ast.HashLiteral{Token: p.currentToken}
+	hash.Pairs = make(map[ast.Expression]ast.Expression)
 
-// used by the parser to evaluate the order of tokens in a statement/expression
-// determines if the expected token is the next token in the program
-func (p *Parser) expectedToken(t token.TokenType) bool {
-	if p.nextToken.Type == t {
+	for p.nextToken.Type != token.CBRACE {
 		p.advanceTokens()
-		return true
-	} else {
-		p.expectedTokenError(t)
-		return false
+		key := p.parseExpression(LOWEST)
+
+		if !p.expectedToken(token.COLON) {
+			return nil
+		}
+
+		p.advanceTokens()
+		value := p.parseExpression(LOWEST)
+
+		hash.Pairs[key] = value
+
+		if p.nextToken.Type != token.CBRACE && !p.expectedToken(token.COMMA) {
+			return nil
+		}
 	}
+
+	if !p.expectedToken(token.CBRACE) {
+		return nil
+	}
+
+	return hash
 }
 
 // used by the parseStatement method to parse a let statement in the program
@@ -466,6 +526,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
 	p.prefixParseFunctions[token.IF] = p.parseIfExpression
 	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
+	p.prefixParseFunctions[token.STRING] = p.parseStringLiteral
+	p.prefixParseFunctions[token.OBRACKET] = p.parseArrayLiteral
+	p.prefixParseFunctions[token.OBRACE] = p.parseHashLiteral
 
 	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
 	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
@@ -477,6 +540,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFunctions[token.LT] = p.parseInfixExpression
 	p.infixParseFunctions[token.GT] = p.parseInfixExpression
 	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
+	p.infixParseFunctions[token.OBRACKET] = p.parseIndexExpression
 
 	p.advanceTokens()
 	p.advanceTokens()
