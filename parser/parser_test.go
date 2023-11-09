@@ -342,6 +342,7 @@ func TestParsingInfixExpression(t *testing.T) {
 		{"5 - 5;", 5, "-", 5},
 		{"5 * 5;", 5, "*", 5},
 		{"5 / 5;", 5, "/", 5},
+		{"5 % 5;", 5, "%", 5},
 		{"5 > 5;", 5, ">", 5},
 		{"5 < 5;", 5, "<", 5},
 		{"5 == 5;", 5, "==", 5},
@@ -349,6 +350,10 @@ func TestParsingInfixExpression(t *testing.T) {
 		{"true == true", true, "==", true},
 		{"true != false", true, "!=", false},
 		{"false == false", false, "==", false},
+		{"true and true", true, "and", true},
+		{"false and false", false, "and", false},
+		{"true or true", true, "or", true},
+		{"false or false", false, "or", false},
 	}
 
 	for _, infixTest := range infixTests {
@@ -488,6 +493,22 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{
 			"add(a * b[2], b[1], 2 * [1, 2][1])",
 			"add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+		},
+		{
+			"true == true and false == false",
+			"((true == true) and (false == false))",
+		},
+		{
+			"5 % 2 > 10 or 10 < 5 % 2",
+			"(((5 % 2) > 10) or (10 < (5 % 2)))",
+		},
+		{
+			"a + b % c + d / e - f",
+			"(((a + (b % c)) + (d / e)) - f)",
+		},
+		{
+			"a == b and c == d or d == a",
+			"(((a == b) and (c == d)) or (d == a))",
 		},
 	}
 

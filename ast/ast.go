@@ -217,26 +217,6 @@ func (hl *HashLiteral) String() string {
 	return out.String()
 }
 
-// holds operator token and expression it operates on
-type PrefixExpression struct {
-	Token token.Token
-	Operator string
-	Right Expression
-}
-// implements Expression and Node inteface
-func (pe *PrefixExpression) expressionNode() {}
-func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
-func (pe *PrefixExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("(")
-	out.WriteString(pe.Operator)
-	out.WriteString(pe.Right.String())
-	out.WriteString(")")
-
-	return out.String()
-}
-
 //
 type FunctionLiteral struct {
 	Token token.Token
@@ -259,6 +239,26 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(strings.Join(parameters, ", "))
 	out.WriteString(") ")
 	out.WriteString(fl.Body.String())
+
+	return out.String()
+}
+
+// holds operator token and expression it operates on
+type PrefixExpression struct {
+	Token token.Token
+	Operator string
+	Right Expression
+}
+// implements Expression and Node inteface
+func (pe *PrefixExpression) expressionNode() {}
+func (pe *PrefixExpression) TokenLiteral() string { return pe.Token.Literal }
+func (pe *PrefixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(pe.Operator)
+	out.WriteString(pe.Right.String())
+	out.WriteString(")")
 
 	return out.String()
 }

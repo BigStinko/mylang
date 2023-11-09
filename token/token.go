@@ -27,6 +27,7 @@ const (
 	GT = ">"
 	EQ = "=="
 	NOT_EQ = "!="
+	MODULO = "%"
 
 	// delimiters
 	COMMA = ","
@@ -44,6 +45,8 @@ const (
 	LET = "LET"
 	TRUE = "TRUE"
 	FALSE = "FALSE"
+	AND = "AND"
+	OR = "OR"
 	IF = "IF"
 	ELSE = "ELSE"
 	RETURN = "RETURN"
@@ -54,6 +57,8 @@ var keywords = map[string]TokenType{
 	"let": LET,
 	"true": TRUE,
 	"false": FALSE,
+	"and": AND,
+	"or": OR,
 	"if": IF,
 	"else": ELSE,
 	"return": RETURN,

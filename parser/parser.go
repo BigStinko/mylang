@@ -31,6 +31,8 @@ type (
 const (
 	_ int = iota
 	LOWEST
+	OR
+	AND
 	EQUALS
 	LESSGREATER
 	SUM
@@ -42,6 +44,8 @@ const (
 
 // precedences for operators
 var precedences = map[token.TokenType]int{
+	token.OR: OR,
+	token.AND: AND,
 	token.EQ: EQUALS,
 	token.NOT_EQ: EQUALS,
 	token.LT: LESSGREATER,
@@ -50,6 +54,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS: SUM,
 	token.SLASH: PRODUCT,
 	token.ASTERISK: PRODUCT,
+	token.MODULO: PRODUCT,
 	token.OPAREN: CALL,
 	token.OBRACKET: INDEX,
 }
@@ -535,10 +540,13 @@ func New(l *lexer.Lexer) *Parser {
 	p.infixParseFunctions[token.MINUS] = p.parseInfixExpression
 	p.infixParseFunctions[token.SLASH] = p.parseInfixExpression
 	p.infixParseFunctions[token.ASTERISK] = p.parseInfixExpression
+	p.infixParseFunctions[token.MODULO] = p.parseInfixExpression
 	p.infixParseFunctions[token.EQ] = p.parseInfixExpression
 	p.infixParseFunctions[token.NOT_EQ] = p.parseInfixExpression
 	p.infixParseFunctions[token.LT] = p.parseInfixExpression
 	p.infixParseFunctions[token.GT] = p.parseInfixExpression
+	p.infixParseFunctions[token.AND] = p.parseInfixExpression
+	p.infixParseFunctions[token.OR] = p.parseInfixExpression
 	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
 	p.infixParseFunctions[token.OBRACKET] = p.parseIndexExpression
 

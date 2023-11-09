@@ -101,14 +101,18 @@ func evaluateMinusPrefixOperator(right object.Object) object.Object {
 }
 
 // evaluates the two prefix operators
-func evaluatePrefixOperator(operator string, right object.Object) object.Object {
-	switch operator {
+func evaluatePrefixOperator(
+	operator token.Token,
+	right object.Object,
+) object.Object {
+	switch operator.Type {
 	case token.BANG:
 		return evaluateBangOperator(right)
 	case token.MINUS:
 		return evaluateMinusPrefixOperator(right)
 	default:
-		return newError("unknown operator: %s%s", operator, right.Type())
+		return newError("unknown operator: %s%s",
+			operator.Literal, right.Type())
 	}
 }
 
@@ -122,13 +126,13 @@ func getBoolObject(input bool) *object.Boolean {
 
 // evaluates all the binary operators for integers.
 func evaluateIntegerInfixOperator(
-	operator string,
+	operator token.Token,
 	left, right object.Object,
 ) object.Object {
 	leftValue := left.(*object.Integer).Value
 	rightValue := right.(*object.Integer).Value
 
-	switch operator {
+	switch operator.Type {
 	case token.PLUS:
 		return &object.Integer{Value: leftValue + rightValue}
 	case token.MINUS:
@@ -137,6 +141,8 @@ func evaluateIntegerInfixOperator(
 		return &object.Integer{Value: leftValue * rightValue}
 	case token.SLASH:
 		return &object.Integer{Value: leftValue / rightValue}
+	case token.MODULO:
+		return &object.Integer{Value: leftValue % rightValue}
 	case token.LT:
 		return getBoolObject(leftValue < rightValue)
 	case token.GT:
@@ -147,17 +153,17 @@ func evaluateIntegerInfixOperator(
 		return getBoolObject(leftValue != rightValue)
 	default:
 		return newError("unknown operator: %s %s %s",
-			left.Type(), operator, right.Type())
+			left.Type(), operator.Literal, right.Type())
 	}
 }
 
 func evaluateStringInfixOperator(
-	operator string,
+	operator token.Token,
 	left, right object.Object,
 ) object.Object {
-	if operator != token.PLUS {
+	if operator.Type != token.PLUS {
 		return newError("unknown operator: %s %s %s",
-			left.Type(), operator, right.Type())
+			left.Type(), operator.Literal, right.Type())
 	}
 
 	leftValue := left.(*object.String).Value
@@ -168,24 +174,28 @@ func evaluateStringInfixOperator(
 
 // evaluates all general binary operators
 func evaluateInfixOperator(
-	operator string,
+	operator token.Token,
 	left, right object.Object,
 ) object.Object {
 	switch {
+	case operator.Type == token.AND:
+		return getBoolObject(isTruthy(left) && isTruthy(right))
+	case operator.Type == token.OR:
+		return getBoolObject(isTruthy(left) || isTruthy(right))
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evaluateIntegerInfixOperator(operator, left, right)
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evaluateStringInfixOperator(operator, left, right)
-	case operator == token.EQ:
+	case operator.Type == token.EQ:
 		return getBoolObject(left == right)
-	case operator == token.NOT_EQ:
+	case operator.Type == token.NOT_EQ:
 		return getBoolObject(left != right)
 	case left.Type() != right.Type():
 		return newError("type mismatch: %s %s %s",
-			left.Type(), operator, right.Type())
+			left.Type(), operator.Literal, right.Type())
 	default:
 		return newError("unknown operator: %s %s %s",
-			left.Type(), operator, right.Type())
+			left.Type(), operator.Literal, right.Type())
 	}
 }
 
@@ -411,7 +421,7 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 		if isError(right) {
 			return right
 		}
-		return evaluatePrefixOperator(node.Operator, right)
+		return evaluatePrefixOperator(node.Token, right)
 	
 	case *ast.InfixExpression:
 		left := Evaluate(node.Left, env)
@@ -422,7 +432,7 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 		if isError(right) {
 			return right
 		}
-		return evaluateInfixOperator(node.Operator, left, right)
+		return evaluateInfixOperator(node.Token, left, right)
 	
 	case *ast.Identifier:
 		return evaluateIdentifier(node, env)

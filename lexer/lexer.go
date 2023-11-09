@@ -140,6 +140,8 @@ func (l *Lexer) NextToken() (tok token.Token) {
 		tok = token.Token{Type: token.SLASH, Literal: string(l.char)}
 	case '*':
 		tok = token.Token{Type: token.ASTERISK, Literal: string(l.char)}
+	case '%':
+		tok = token.Token{Type: token.MODULO, Literal: string(l.char)}
 	case '<':
 		tok = token.Token{Type: token.LT, Literal: string(l.char)}
 	case '>':
