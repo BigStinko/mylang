@@ -107,12 +107,38 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return literal
 }
 
+func (p *Parser) parseFloatLiteral() ast.Expression {
+	literal := &ast.FloatLiteral{Token: p.currentToken}
+
+	value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
+	if err != nil {
+		var msg string = fmt.Sprintf("could not parse %q as float", p.currentToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	literal.Value = value
+
+	return literal
+}
+
 // creates a boolean literal from the current token
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		Token: p.currentToken,
 		Value: p.currentToken.Type == token.TRUE,
 	} 
+}
+
+func (p *Parser) parseByteLiteral() ast.Expression {
+	value := []byte(p.currentToken.Literal)
+
+	return &ast.ByteLiteral{
+		Token: p.currentToken,
+		Value: value[0],
+	}
+
+	
 }
 
 func (p *Parser) parseStringLiteral() ast.Expression {
@@ -524,6 +550,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions = make(map[token.TokenType]prefixParseFunction)
 	p.prefixParseFunctions[token.IDENT] = p.parseIdentifier
 	p.prefixParseFunctions[token.INT] = p.parseIntegerLiteral
+	p.prefixParseFunctions[token.FLOAT] = p.parseFloatLiteral
+	p.prefixParseFunctions[token.BYTE] = p.parseByteLiteral
+	p.prefixParseFunctions[token.STRING] = p.parseStringLiteral
 	p.prefixParseFunctions[token.TRUE] = p.parseBooleanLiteral
 	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral
 	p.prefixParseFunctions[token.BANG] = p.parsePrefixExpression
@@ -531,7 +560,6 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
 	p.prefixParseFunctions[token.IF] = p.parseIfExpression
 	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
-	p.prefixParseFunctions[token.STRING] = p.parseStringLiteral
 	p.prefixParseFunctions[token.OBRACKET] = p.parseArrayLiteral
 	p.prefixParseFunctions[token.OBRACE] = p.parseHashLiteral
 

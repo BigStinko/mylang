@@ -14,7 +14,9 @@ const (
 	// identifiers and literals
 	IDENT = "IDENT"
 	INT = "INT"
+	FLOAT = "FLOAT"
 	STRING = "STRING"
+	BYTE = "BYTE"
 
 	// operators
 	ASSIGN = "="

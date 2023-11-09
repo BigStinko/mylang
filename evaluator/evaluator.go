@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"math"
 	"mylang/ast"
 	"mylang/object"
 	"mylang/token"
@@ -85,6 +86,21 @@ func evaluateBangOperator(right object.Object) object.Object {
 	}
 }
 
+// determines the truth value of the given object. As long as the
+// object has a value that is not NULL or FALSE, it returns true
+func isTruthy(obj object.Object) bool {
+	switch obj {
+	case NULL:
+		return false
+	case TRUE:
+		return true
+	case FALSE:
+		return false
+	default:
+		return true
+	}
+}
+
 // returns a new error object. Uses the same interface as Sprintf
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
@@ -92,12 +108,16 @@ func newError(format string, a ...interface{}) *object.Error {
 
 // constructs and returns an integer object with the opposite value
 func evaluateMinusPrefixOperator(right object.Object) object.Object {
-	if right.Type() != object.INTEGER_OBJ {
+	switch right.Type() {
+	case object.INTEGER_OBJ:
+		value := right.(*object.Integer).Value
+		return &object.Integer{Value: -value}
+	case object.FLOAT_OBJ:
+		value := right.(*object.Float).Value
+		return &object.Float{Value: -value}
+	default:
 		return newError("unknown operator: -%s", right.Type())
 	}
-
-	value := right.(*object.Integer).Value
-	return &object.Integer{Value: -value}
 }
 
 // evaluates the two prefix operators
@@ -157,6 +177,39 @@ func evaluateIntegerInfixOperator(
 	}
 }
 
+// evaluates all the binary operators for floats.
+func evaluateFloatInfixOperator(
+	operator token.Token,
+	left, right object.Object,
+) object.Object {
+	leftValue := left.(*object.Float).Value
+	rightValue := right.(*object.Float).Value
+
+	switch operator.Type {
+	case token.PLUS:
+		return &object.Float{Value: leftValue + rightValue}
+	case token.MINUS:
+		return &object.Float{Value: leftValue - rightValue}
+	case token.ASTERISK:
+		return &object.Float{Value: leftValue * rightValue}
+	case token.SLASH:
+		return &object.Float{Value: leftValue / rightValue}
+	case token.MODULO:
+		return &object.Float{Value: math.Mod(leftValue, rightValue)}
+	case token.LT:
+		return getBoolObject(leftValue < rightValue)
+	case token.GT:
+		return getBoolObject(leftValue > rightValue)
+	case token.EQ:
+		return getBoolObject(leftValue == rightValue)
+	case token.NOT_EQ:
+		return getBoolObject(leftValue != rightValue)
+	default:
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator.Literal, right.Type())
+	}
+}
+
 func evaluateStringInfixOperator(
 	operator token.Token,
 	left, right object.Object,
@@ -180,19 +233,29 @@ func evaluateInfixOperator(
 	switch {
 	case operator.Type == token.AND:
 		return getBoolObject(isTruthy(left) && isTruthy(right))
+	
 	case operator.Type == token.OR:
 		return getBoolObject(isTruthy(left) || isTruthy(right))
+	
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evaluateIntegerInfixOperator(operator, left, right)
+	
+	case left.Type() == object.FLOAT_OBJ && right.Type() == object.FLOAT_OBJ:
+		return evaluateFloatInfixOperator(operator, left, right)
+	
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evaluateStringInfixOperator(operator, left, right)
+	
 	case operator.Type == token.EQ:
 		return getBoolObject(left == right)
+	
 	case operator.Type == token.NOT_EQ:
 		return getBoolObject(left != right)
+	
 	case left.Type() != right.Type():
 		return newError("type mismatch: %s %s %s",
 			left.Type(), operator.Literal, right.Type())
+	
 	default:
 		return newError("unknown operator: %s %s %s",
 			left.Type(), operator.Literal, right.Type())
@@ -213,21 +276,6 @@ func evaluateIdentifier(
 	}
 
 	return newError("identifier not found: " + node.Value)
-}
-
-// determines the truth value of the given object. As long as the
-// object has a value that is not NULL or FALSE, it returns true
-func isTruthy(obj object.Object) bool {
-	switch obj {
-	case NULL:
-		return false
-	case TRUE:
-		return true
-	case FALSE:
-		return false
-	default:
-		return true
-	}
 }
 
 // evaluates if and if else expressions. If the condition is true
@@ -440,6 +488,12 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 	
+	case *ast.FloatLiteral:
+		return &object.Float{Value: node.Value}
+
+	case *ast.ByteLiteral:
+		return &object.Byte{Value: node.Value}
+
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
 

@@ -287,6 +287,100 @@ func TestIntegerLiteralExpression(t *testing.T) {
 	}
 }
 
+func TestStringLiteralExpression(t *testing.T) {
+	var input string = `"hello world";`
+
+	l := lexer.New(input)
+	var p *Parser = New(l)
+	var program *ast.Program = p.ParseProgram()
+	checkParserErrors(t, p)
+
+	statement := program.Statements[0].(*ast.ExpressionStatement)
+	literal, ok := statement.Expression.(*ast.StringLiteral)
+	if !ok {
+		t.Fatalf("exp not *ast.StringLiteral. got=%T", statement.Expression)
+	}
+
+	if literal.Value != "hello world" {
+		t.Errorf("literal.Value not %q. got=%q", "hello world", literal.Value)
+	}
+}
+
+func TestByteLiteralExpression(t *testing.T) {
+	var input string = `'a';`
+
+	l := lexer.New(input)
+	var p *Parser = New(l)
+	var program *ast.Program = p.ParseProgram()
+	checkParserErrors(t, p)
+
+	statement := program.Statements[0].(*ast.ExpressionStatement)
+	literal, ok := statement.Expression.(*ast.ByteLiteral)
+	if !ok {
+		t.Fatalf("exp not *ast.ByteLiteral. got=%T", statement.Expression)
+	}
+
+	if literal.Value != 'a' {
+		t.Errorf("literal.Value not %q. got=%q", 'a', literal.Value)
+	}
+}
+
+func TestFloatLiteralExpression(t *testing.T) {
+	var input string = `0.3333;`
+
+	l := lexer.New(input)
+	var p *Parser = New(l)
+	var program *ast.Program = p.ParseProgram()
+	checkParserErrors(t, p)
+
+	statement := program.Statements[0].(*ast.ExpressionStatement)
+	literal, ok := statement.Expression.(*ast.FloatLiteral)
+	if !ok {
+		t.Fatalf("exp not *ast.FloatLiteral. got=%T", statement.Expression)
+	}
+
+	if literal.Value != 0.3333 {
+		t.Errorf("literal.Value not %f. got=%f", 0.3333, literal.Value)
+	}
+}
+
+func TestBooleanExpression(t *testing.T) {
+	tests := []struct {
+		input string
+		expectedBoolean bool
+	}{
+		{"true;", true},
+		{"false;", false},
+	}
+
+	for _, test := range tests {
+		l := lexer.New(test.input)
+		var p *Parser = New(l)
+		var program *ast.Program = p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program has not enough statements. got=%d",
+				len(program.Statements))
+		}
+
+		statement, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T",
+				program.Statements[0])
+		}
+
+		boolean, ok := statement.Expression.(*ast.BooleanLiteral)
+		if !ok {
+			t.Fatalf("exp not *ast.Boolean. got=%T", statement.Expression)
+		}
+		if boolean.Value != test.expectedBoolean {
+			t.Errorf("boolean.Value not %t. got=%t", test.expectedBoolean,
+				boolean.Value)
+		}
+	}
+}
+
 func TestParsingPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
 		input string
@@ -525,43 +619,6 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 	}
 }
 
-func TestBooleanExpression(t *testing.T) {
-	tests := []struct {
-		input string
-		expectedBoolean bool
-	}{
-		{"true;", true},
-		{"false;", false},
-	}
-
-	for _, test := range tests {
-		l := lexer.New(test.input)
-		var p *Parser = New(l)
-		var program *ast.Program = p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program has not enough statements. got=%d",
-				len(program.Statements))
-		}
-
-		statement, ok := program.Statements[0].(*ast.ExpressionStatement)
-		if !ok {
-			t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T",
-				program.Statements[0])
-		}
-
-		boolean, ok := statement.Expression.(*ast.BooleanLiteral)
-		if !ok {
-			t.Fatalf("exp not *ast.Boolean. got=%T", statement.Expression)
-		}
-		if boolean.Value != test.expectedBoolean {
-			t.Errorf("boolean.Value not %t. got=%t", test.expectedBoolean,
-				boolean.Value)
-		}
-	}
-}
-
 func TestIfExpression(t *testing.T) {
 	var input string = `if (x < y) { x }`
 
@@ -785,25 +842,6 @@ func TestCallExpressionParsing(t *testing.T) {
 	testLiteralExpression(t, expression.Arguments[0], 1)
 	testInfixExpression(t, expression.Arguments[1], 2, "*", 3)
 	testInfixExpression(t, expression.Arguments[2], 4, "+", 5)
-}
-
-func TestStringLiteralExpression(t *testing.T) {
-	var input string = `"hello world";`
-
-	l := lexer.New(input)
-	var p *Parser = New(l)
-	var program *ast.Program = p.ParseProgram()
-	checkParserErrors(t, p)
-
-	statement := program.Statements[0].(*ast.ExpressionStatement)
-	literal, ok := statement.Expression.(*ast.StringLiteral)
-	if !ok {
-		t.Fatalf("exp not *ast.StringLiteral. got=%T", statement.Expression)
-	}
-
-	if literal.Value != "hello world" {
-		t.Errorf("literal.Value not %q. got=%q", "hello world", literal.Value)
-	}
 }
 
 func TestParsingArrayLiterals(t *testing.T) {

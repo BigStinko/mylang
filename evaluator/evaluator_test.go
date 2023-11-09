@@ -32,6 +32,35 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 	return true
 }
 
+func testFloatObject(t *testing.T, obj object.Object, expected float64) bool {
+	result, ok := obj.(*object.Float)
+	if !ok {
+		t.Errorf("object is not Float. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%f, want=%f",
+			result.Value, expected)
+		return false
+	}
+	return true
+}
+
+func testByteObject(t *testing.T, obj object.Object, expected byte) bool {
+	result, ok := obj.(*object.Byte)
+	if !ok {
+		t.Errorf("object is not Byte. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%q, want=%q",
+			result.Value, expected)
+		return false
+	}
+	return true
+}
 
 func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	result, ok := obj.(*object.Boolean)
@@ -57,10 +86,52 @@ func testNullObject(t *testing.T, obj object.Object) bool {
 	return true
 }
 
+func TestFloatLiteral(t *testing.T) {
+	input := `0.3333`
+
+	evaluated := testEval(input)
+	flt, ok := evaluated.(*object.Float)
+	if !ok {
+		t.Fatalf("object is not Float. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	if flt.Value != 0.3333 {
+		t.Errorf("Float has wrong value. got=%f", flt.Value)
+	}
+}
+
+func TestByteLiteral(t *testing.T) {
+	input := `'b'`
+
+	evaluated := testEval(input)
+	b, ok := evaluated.(*object.Byte)
+	if !ok {
+		t.Fatalf("object is not Byte. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	if b.Value != 'b' {
+		t.Errorf("Byte has wrong value. got=%q", b.Value)
+	}
+}
+
+func TestStringLiteral(t *testing.T) {
+	input := `"Hello World!"`
+
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	if !ok {
+		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	if str.Value != "Hello World!" {
+		t.Errorf("String has wrong value. got=%q", str.Value)
+	}
+}
+
 func TestEvalIntegerExpression(t *testing.T) {
 	tests := []struct {
 		input string
-		exprected int64
+		expected int64
 	}{
 		{"5", 5},
 		{"10", 10},
@@ -82,7 +153,31 @@ func TestEvalIntegerExpression(t *testing.T) {
 
 	for _, test := range tests {
 		var evaluated object.Object = testEval(test.input)
-		testIntegerObject(t, evaluated, test.exprected)
+		testIntegerObject(t, evaluated, test.expected)
+	}
+}
+
+func TestEvalFloatExpression(t *testing.T) {
+	tests := []struct {
+		input string
+		expected float64
+	}{
+		{"5.0", 5.0},
+		{"10.0", 10.0},
+		{"-5.0", -5.0},
+		{"-10.0", -10.0},
+		{"5.0 + 5.5 + 5.5 + 4.0 - 10.0", 10.0},
+		{"2.5 * 2.3 * 2.7 * 2.8 * 2.2", 95.634},
+		{"-50.0 + 100.01 + -50.0", 0.01},
+		{"20.1 + 2.3 * -10.5", -4.05},
+		{"50.0 / 2.3 * 2.7 + 10.5", 69.195652173913043478260869565217},
+		{"(5.5 + 10.3 * 2.7 + 15.0 / 3.0) * 2.7 + -10.5", 92.937},
+		{"8.3 % 3.0 + 5.6 % 2.0", 3.9},
+	}
+
+	for _, test := range tests {
+		var evaluated object.Object = testEval(test.input)
+		testFloatObject(t, evaluated, test.expected)
 	}
 }
 
@@ -181,6 +276,14 @@ func TestErrorHandling(t *testing.T) {
 		{
 			"5 + true; 5;",
 			"type mismatch: INTEGER + BOOLEAN",
+		},
+		{
+			"5 + 0.5;",
+			"type mismatch: INTEGER + FLOAT",
+		},
+		{
+			"5 + 'c';",
+			"type mismatch: INTEGER + BYTE",
 		},
 		{
 			"-true",
@@ -333,20 +436,6 @@ func TestClosures(t *testing.T) {
 	testIntegerObject(t, testEval(input), 4)
 }
 
-func TestStringLiteral(t *testing.T) {
-	input := `"Hello World!"`
-
-	evaluated := testEval(input)
-	str, ok := evaluated.(*object.String)
-	if !ok {
-		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
-	}
-
-	if str.Value != "Hello World!" {
-		t.Errorf("String has wrong value. got=%q", str.Value)
-	}
-}
-
 func TestStringConcatenation(t *testing.T) {
 	var input string = `"Hello" + " " + "World!"`
 
@@ -383,10 +472,10 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`push(1, 1)`, "argument to `push` must be ARRAY, got INTEGER"},
 	}
 
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
+	for _, test := range tests {
+		evaluated := testEval(test.input)
 
-		switch expected := tt.expected.(type) {
+		switch expected := test.expected.(type) {
 		case int:
 			testIntegerObject(t, evaluated, int64(expected))
 		case nil:

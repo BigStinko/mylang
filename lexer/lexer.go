@@ -16,7 +16,7 @@ func isLetter(char byte) bool {
 }
 
 func isDigit(char byte) bool {
-	return '0' <= char && char <= '9'
+	return '0' <= char && char <= '9' || char == '.'
 }
 
 // reads a character from the lexer's input string and increments
@@ -37,12 +37,19 @@ func (l *Lexer) readChar() {
 
 // when the lexer gets to a number in the input this function
 // reads through the number in the string and returns it.
-func (l *Lexer) readNumber() string {
+func (l *Lexer) readNumber() (string, bool) {
 	var startPos int = l.position
+	var isFloat bool = false
 	for isDigit(l.char) {
+		if l.char == '.' {
+			if isFloat {
+				return l.input[startPos:l.position], isFloat
+			}
+			isFloat = true
+		}
 		l.readChar()
 	}
-	return l.input[startPos:l.position]
+	return l.input[startPos:l.position], isFloat
 }
 
 // extracts a string from the lexer surrounded by quotations
@@ -57,6 +64,13 @@ func (l *Lexer) readString() string {
 	}
 
 	return l.input[position:l.position]
+}
+
+func (l *Lexer) readByte() string {
+	var position int = l.position + 1
+	l.readChar()
+	l.readChar()
+	return string(l.input[position])
 }
 
 // reads through any identifier/keyword in the input string and
@@ -107,6 +121,9 @@ func (l *Lexer) NextToken() (tok token.Token) {
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
+	case '\'':
+		tok.Type = token.BYTE
+		tok.Literal = l.readByte()
 	case ';':
 		tok = token.Token{Type: token.SCOLON, Literal: string(l.char)}
 	case ':':
@@ -157,8 +174,14 @@ func (l *Lexer) NextToken() (tok token.Token) {
 			tok.Type = token.LookupIdent(tok.Literal)  // gets token for ident/keyword
 			return tok
 		} else if  isDigit(l.char) { // if it is a digit then the token is a number
-			tok.Type = token.INT
-			tok.Literal = l.readNumber()
+			var isFloat bool
+			tok.Literal, isFloat = l.readNumber()
+			if isFloat {
+				tok.Type = token.FLOAT
+			} else {
+				tok.Type = token.INT
+			}
+
 			return tok
 		} else {
 			tok = token.Token{Type: token.ILLEGAL, Literal: string(l.char)}

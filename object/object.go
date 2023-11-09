@@ -15,7 +15,9 @@ type BuiltinFunction func(args ...Object) Object
 const (
 	NULL_OBJ = "NULL"
 	INTEGER_OBJ = "INTEGER"
+	FLOAT_OBJ = "FLOAT"
 	BOOLEAN_OBJ = "BOOLEAN"
+	BYTE_OBJ = "BYTE"
 	STRING_OBJ = "STRING"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	FUNCTION_OBJ = "FUNCTION"
@@ -50,12 +52,28 @@ func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string { return fmt.Sprintf("%d", i.Value) }
 
 
+type Float struct {
+	Value float64
+}
+
+func (f *Float) Type() ObjectType { return FLOAT_OBJ }
+func (f *Float) Inspect() string { return fmt.Sprintf("%f", f.Value) }
+
+
 type Boolean struct {
 	Value bool
 }
 
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string { return fmt.Sprintf("%t", b.Value) }
+
+
+type Byte struct {
+	Value byte
+}
+
+func (b *Byte) Type() ObjectType { return BYTE_OBJ }
+func (b *Byte) Inspect() string { return string(b.Value) }
 
 
 type String struct {
