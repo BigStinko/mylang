@@ -8,4 +8,4 @@ float datatype
 loops  
 pop function  
 struct datatype  
-&& and ||  
+
