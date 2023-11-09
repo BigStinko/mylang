@@ -82,6 +82,12 @@ var builtins = map[string]*object.Builtin{
 			
 			array := args[0].(*object.Array)
 			length := len(array.Elements)
+			capacity := cap(array.Elements)
+
+			if capacity > length {
+				array.Elements[length] = args[1]
+				return array
+			}
 
 			newElements := make([]object.Object, length + 1, length + 1)
 			copy(newElements, array.Elements)
@@ -89,6 +95,116 @@ var builtins = map[string]*object.Builtin{
 
 			return &object.Array{Elements: newElements}
 		},	
+	},
+
+	"pop": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			switch args[0].Type() {
+			case object.ARRAY_OBJ:
+				array := args[0].(*object.Array)
+				length := int64(len(array.Elements))
+				
+				if length == 0 {
+					return NULL
+				}
+
+				out := array.Elements[length - 1]
+
+				array.Elements = array.Elements[:length - 1]
+				return out
+			case object.STRING_OBJ:
+				str := args[0].(*object.String)
+				length := int64(len(str.Value))
+				if length == 0 {
+					return NULL
+				}
+
+				var b byte = str.Value[length - 1]
+				str.Value = str.Value[:length - 1]
+
+				return &object.Byte{Value: b}
+			default:
+				return newError("argument to `assign` must be ARRAY or STRING, got %s",
+					args[0].Type())
+			}
+		},
+	},
+
+	"assign": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 3 {
+				return newError("wrong number of arguments. got=%d, want=3",
+					len(args))
+			}
+			switch args[0].Type() {
+			case object.ARRAY_OBJ:
+				if args[1].Type() != object.INTEGER_OBJ {
+					return newError("argument 2 to `assign` must be INTEGER, got %s",
+						args[1].Type())
+				}
+				
+				array := args[0].(*object.Array)
+				length := int64(len(array.Elements))
+
+				index := args[1].(*object.Integer).Value
+
+				if (index > length - 1) {
+					return newError("invalid index on array")
+				}
+
+				array.Elements[index] = args[2]
+			
+			case object.HASH_OBJ:
+				hashKey, ok := args[1].(object.Hashable)
+				if !ok {
+					return newError("unusable as hash key: %s", args[1].Type())
+				}
+
+				hash := args[0].(*object.Hash)
+				hash.Pairs[hashKey.HashKey()] = object.HashPair{Key: args[1], Value: args[2]}
+
+			case object.STRING_OBJ:
+				if args[1].Type() != object.INTEGER_OBJ {
+					return newError("argument 2 to `assign` must be INTEGER, got %s",
+						args[1].Type())
+				}
+				if args[2].Type() != object.BYTE_OBJ {
+					return newError("argument 3 to `assign` must be BYTE, got %s",
+						args[2].Type())
+				}
+
+				str := args[0].(*object.String)
+				length := int64(len(str.Value))
+				index := args[1].(*object.Integer).Value
+				b := args[2].(*object.Byte)
+
+				if (index > length - 1) {
+					return newError("invalid index on string")
+				}
+
+				str.Value = str.Value[:index] + string(b.Value) + str.Value[index + 1 :] 
+			default:
+				return newError("argument 1 to `assign` must be ARRAY, HASH, or STRING got %s",
+					args[0].Type())
+			}
+
+			return NULL
+		},
+	},
+
+	"string": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+
+			return &object.String{Value: args[0].Inspect()}
+		},
 	},
 
 	"puts": {

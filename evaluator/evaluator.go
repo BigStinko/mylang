@@ -210,6 +210,28 @@ func evaluateFloatInfixOperator(
 	}
 }
 
+func evaluateByteInfixOperator(
+	operator token.Token,
+	left, right object.Object,
+) object.Object {
+	leftValue := left.(*object.Byte).Value
+	rightValue := right.(*object.Byte).Value
+
+	switch operator.Type {
+	case token.LT:
+		return getBoolObject(leftValue < rightValue)
+	case token.GT:
+		return getBoolObject(leftValue > rightValue)
+	case token.EQ:
+		return getBoolObject(leftValue == rightValue)
+	case token.NOT_EQ:
+		return getBoolObject(leftValue != rightValue)
+	default:
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator.Literal, right.Type())
+	}
+}
+
 func evaluateStringInfixOperator(
 	operator token.Token,
 	left, right object.Object,
@@ -245,6 +267,9 @@ func evaluateInfixOperator(
 	
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evaluateStringInfixOperator(operator, left, right)
+	
+	case left.Type() == object.BYTE_OBJ && right.Type() == object.BYTE_OBJ:
+		return evaluateByteInfixOperator(operator, left, right)
 	
 	case operator.Type == token.EQ:
 		return getBoolObject(left == right)
@@ -378,6 +403,18 @@ func evaluateArrayIndexExpression(array, index object.Object) object.Object {
 	return arrayObject.Elements[idx]
 }
 
+func evaluateStringIndexExpression(str, index object.Object) object.Object {
+	strObj := str.(*object.String)
+	idx := index.(*object.Integer).Value
+	maximum := int64(len(strObj.Value) - 1)
+
+	if idx < 0 || idx > maximum {
+		return NULL
+	}
+
+	return &object.Byte{Value: strObj.Value[idx]}
+}
+
 func evaluateHashIndexExpression(hash, index object.Object) object.Object {
 	hashObject := hash.(*object.Hash)
 
@@ -398,6 +435,8 @@ func evaluateIndexExpression(left, index object.Object) object.Object {
 	switch {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
 		return evaluateArrayIndexExpression(left, index)
+	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
+		return evaluateStringIndexExpression(left, index)
 	case left.Type() == object.HASH_OBJ:
 		return evaluateHashIndexExpression(left, index)
 	default:
