@@ -315,9 +315,9 @@ func TestByteLiteralExpression(t *testing.T) {
 	checkParserErrors(t, p)
 
 	statement := program.Statements[0].(*ast.ExpressionStatement)
-	literal, ok := statement.Expression.(*ast.ByteLiteral)
+	literal, ok := statement.Expression.(*ast.RuneLiteral)
 	if !ok {
-		t.Fatalf("exp not *ast.ByteLiteral. got=%T", statement.Expression)
+		t.Fatalf("exp not *ast.RuneLiteral. got=%T", statement.Expression)
 	}
 
 	if literal.Value != 'a' {

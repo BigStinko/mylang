@@ -172,14 +172,14 @@ func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
 func (bl *BooleanLiteral) String() string { return bl.Token.Literal }
 
 
-type ByteLiteral struct {
+type RuneLiteral struct {
 	Token token.Token
-	Value byte
+	Value rune
 }
 
-func (bl *ByteLiteral) expressionNode() {}
-func (bl *ByteLiteral) TokenLiteral() string { return bl.Token.Literal }
-func (bl *ByteLiteral) String() string { return bl.Token.Literal }
+func (rl *RuneLiteral) expressionNode() {}
+func (rl *RuneLiteral) TokenLiteral() string { return rl.Token.Literal }
+func (rl *RuneLiteral) String() string { return rl.Token.Literal }
 
 
 type StringLiteral struct {

@@ -17,7 +17,7 @@ const (
 	INTEGER_OBJ = "INTEGER"
 	FLOAT_OBJ = "FLOAT"
 	BOOLEAN_OBJ = "BOOLEAN"
-	BYTE_OBJ = "BYTE"
+	RUNE_OBJ = "RUNE"
 	STRING_OBJ = "STRING"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	FUNCTION_OBJ = "FUNCTION"
@@ -68,12 +68,12 @@ func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string { return fmt.Sprintf("%t", b.Value) }
 
 
-type Byte struct {
-	Value byte
+type Rune struct {
+	Value rune
 }
 
-func (b *Byte) Type() ObjectType { return BYTE_OBJ }
-func (b *Byte) Inspect() string { return string(b.Value) }
+func (r *Rune) Type() ObjectType { return RUNE_OBJ }
+func (r *Rune) Inspect() string { return string(r.Value) }
 
 
 type String struct {

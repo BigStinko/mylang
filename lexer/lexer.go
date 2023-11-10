@@ -5,17 +5,17 @@ import (
 )
 
 type Lexer struct {
-	input string
+	input []rune
 	position int
 	readPosition int
-	char byte  //TODO: change to unicode
+	char rune
 }
 
-func isLetter(char byte) bool {
+func isLetter(char rune) bool {
 	return 'a' <= char && char <= 'z' || 'A' <= char && char <= 'Z' || char == '_'
 }
 
-func isDigit(char byte) bool {
+func isDigit(char rune) bool {
 	return '0' <= char && char <= '9' || char == '.'
 }
 
@@ -43,27 +43,46 @@ func (l *Lexer) readNumber() (string, bool) {
 	for isDigit(l.char) {
 		if l.char == '.' {
 			if isFloat {
-				return l.input[startPos:l.position], isFloat
+				return string(l.input[startPos:l.position]), isFloat
 			}
 			isFloat = true
 		}
 		l.readChar()
 	}
-	return l.input[startPos:l.position], isFloat
+	return string(l.input[startPos:l.position]), isFloat
 }
 
 // extracts a string from the lexer surrounded by quotations
 func (l *Lexer) readString() string {
-	var position int = l.position + 1
+	var out string = ""
 
 	for {
 		l.readChar()
 		if l.char == '"' || l.char == 0 {
 			break
 		}
+
+		if l.char == '\\' {
+			l.readChar()
+
+			switch l.char {
+			case 'n':
+				l.char = '\n'
+			case 'r':
+				l.char = '\r'
+			case 't':
+				l.char = '\t'
+			case '"':
+				l.char = '"'
+			case '\\':
+				l.char = '\\'
+			}
+		}
+		
+		out = out + string(l.char)
 	}
 
-	return l.input[position:l.position]
+	return out
 }
 
 func (l *Lexer) readByte() string {
@@ -80,7 +99,7 @@ func (l *Lexer) readIdentifier() string {
 	for isLetter(l.char) {
 		l.readChar()
 	}
-	return l.input[startPos:l.position]
+	return string(l.input[startPos:l.position])
 }
 
 // advances the lexer through the input string until it finds a
@@ -92,7 +111,7 @@ func (l *Lexer) skipWhitespace() {
 }
 
 // looks at the next character 
-func (l *Lexer) peekChar() byte {
+func (l *Lexer) peekChar() rune {
 	if l.readPosition >= len(l.input) {
 		return 0;
 	} else {
@@ -101,7 +120,7 @@ func (l *Lexer) peekChar() byte {
 }
 
 func New(input string) *Lexer {
-	var l *Lexer = &Lexer{input: input}
+	l := &Lexer{input: []rune(input)}
 	l.readChar()
 	return l
 }

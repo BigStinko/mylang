@@ -214,8 +214,8 @@ func evaluateByteInfixOperator(
 	operator token.Token,
 	left, right object.Object,
 ) object.Object {
-	leftValue := left.(*object.Byte).Value
-	rightValue := right.(*object.Byte).Value
+	leftValue := left.(*object.Rune).Value
+	rightValue := right.(*object.Rune).Value
 
 	switch operator.Type {
 	case token.LT:
@@ -268,7 +268,7 @@ func evaluateInfixOperator(
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evaluateStringInfixOperator(operator, left, right)
 	
-	case left.Type() == object.BYTE_OBJ && right.Type() == object.BYTE_OBJ:
+	case left.Type() == object.RUNE_OBJ && right.Type() == object.RUNE_OBJ:
 		return evaluateByteInfixOperator(operator, left, right)
 	
 	case operator.Type == token.EQ:
@@ -412,7 +412,7 @@ func evaluateStringIndexExpression(str, index object.Object) object.Object {
 		return NULL
 	}
 
-	return &object.Byte{Value: strObj.Value[idx]}
+	return &object.Rune{Value: []rune(strObj.Value)[idx]}
 }
 
 func evaluateHashIndexExpression(hash, index object.Object) object.Object {
@@ -530,8 +530,8 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 	case *ast.FloatLiteral:
 		return &object.Float{Value: node.Value}
 
-	case *ast.ByteLiteral:
-		return &object.Byte{Value: node.Value}
+	case *ast.RuneLiteral:
+		return &object.Rune{Value: node.Value}
 
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}

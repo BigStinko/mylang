@@ -27,8 +27,7 @@ func TestNextToken(t *testing.T) {
 
 	10 == 10;
 	10 != 9;
-	"foo 
-	 bar"
+	"foo\n\t\r\"\\bar"
 	"foo bar"
 	[1, 2];
 	{"foo": "bar"}
@@ -116,7 +115,7 @@ func TestNextToken(t *testing.T) {
 		{token.NOT_EQ, "!="},
 		{token.INT, "9"},
 		{token.SCOLON, ";"},
-		{token.STRING, "foo \n\t bar"},
+		{token.STRING, "foo\n\t\r\"\\bar"},
 		{token.STRING, "foo bar"},
 		{token.OBRACKET, "["},
 		{token.INT, "1"},

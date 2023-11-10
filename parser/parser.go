@@ -130,10 +130,10 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 	} 
 }
 
-func (p *Parser) parseByteLiteral() ast.Expression {
-	value := []byte(p.currentToken.Literal)
+func (p *Parser) parseRuneLiteral() ast.Expression {
+	value := []rune(p.currentToken.Literal)
 
-	return &ast.ByteLiteral{
+	return &ast.RuneLiteral{
 		Token: p.currentToken,
 		Value: value[0],
 	}
@@ -551,7 +551,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.IDENT] = p.parseIdentifier
 	p.prefixParseFunctions[token.INT] = p.parseIntegerLiteral
 	p.prefixParseFunctions[token.FLOAT] = p.parseFloatLiteral
-	p.prefixParseFunctions[token.BYTE] = p.parseByteLiteral
+	p.prefixParseFunctions[token.BYTE] = p.parseRuneLiteral
 	p.prefixParseFunctions[token.STRING] = p.parseStringLiteral
 	p.prefixParseFunctions[token.TRUE] = p.parseBooleanLiteral
 	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral

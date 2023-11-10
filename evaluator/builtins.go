@@ -123,10 +123,10 @@ var builtins = map[string]*object.Builtin{
 					return NULL
 				}
 
-				var b byte = str.Value[length - 1]
+				var b rune = []rune(str.Value)[length - 1]
 				str.Value = str.Value[:length - 1]
 
-				return &object.Byte{Value: b}
+				return &object.Rune{Value: b}
 			default:
 				return newError("argument to `assign` must be ARRAY or STRING, got %s",
 					args[0].Type())
@@ -172,7 +172,7 @@ var builtins = map[string]*object.Builtin{
 					return newError("argument 2 to `assign` must be INTEGER, got %s",
 						args[1].Type())
 				}
-				if args[2].Type() != object.BYTE_OBJ {
+				if args[2].Type() != object.RUNE_OBJ {
 					return newError("argument 3 to `assign` must be BYTE, got %s",
 						args[2].Type())
 				}
@@ -180,7 +180,7 @@ var builtins = map[string]*object.Builtin{
 				str := args[0].(*object.String)
 				length := int64(len(str.Value))
 				index := args[1].(*object.Integer).Value
-				b := args[2].(*object.Byte)
+				b := args[2].(*object.Rune)
 
 				if (index > length - 1) {
 					return newError("invalid index on string")

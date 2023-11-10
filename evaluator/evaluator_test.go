@@ -47,8 +47,8 @@ func testFloatObject(t *testing.T, obj object.Object, expected float64) bool {
 	return true
 }
 
-func testByteObject(t *testing.T, obj object.Object, expected byte) bool {
-	result, ok := obj.(*object.Byte)
+func testRuneObject(t *testing.T, obj object.Object, expected rune) bool {
+	result, ok := obj.(*object.Rune)
 	if !ok {
 		t.Errorf("object is not Byte. got=%T (%+v)", obj, obj)
 		return false
@@ -104,7 +104,7 @@ func TestByteLiteral(t *testing.T) {
 	input := `'b'`
 
 	evaluated := testEval(input)
-	b, ok := evaluated.(*object.Byte)
+	b, ok := evaluated.(*object.Rune)
 	if !ok {
 		t.Fatalf("object is not Byte. got=%T (%+v)", evaluated, evaluated)
 	}
@@ -283,7 +283,7 @@ func TestErrorHandling(t *testing.T) {
 		},
 		{
 			"5 + 'c';",
-			"type mismatch: INTEGER + BYTE",
+			"type mismatch: INTEGER + RUNE",
 		},
 		{
 			"-true",
