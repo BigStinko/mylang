@@ -1063,3 +1063,86 @@ func TestParsingHashLiteralsWithExpressions(t *testing.T) {
 		testFunc(value)
 	}
 }
+
+func TestWhileExpression(t *testing.T) {
+	var input string = `while(x<y) { let x=x+1; }`
+	l := lexer.New(input)
+	var p *Parser = New(l)
+	var program *ast.Program = p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Body does not contain %d statements. got=%d",
+			1, len(program.Statements))
+	}
+
+	statement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement, got=%T",
+			program.Statements[0])
+	}
+
+	expression, ok := statement.Expression.(*ast.WhileExpression)
+	if !ok {
+		t.Fatalf("statement.Expression is not ast.WhileExpression. got=%T",
+			statement.Expression)
+	}
+	if !testInfixExpression(t, expression.Condition, "x", "<", "y") {
+		return
+	}
+	if len(expression.Body.Statements) != 1 {
+		t.Errorf("body is not 1 statement. got=%d",
+			len(expression.Body.Statements))
+	}
+
+	body, ok := expression.Body.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("expression.Body.Statements[0] is not ast.LetStatement. got=%T",
+			expression.Body.Statements[0])
+	}
+	if !testLetStatement(t, body, "x") {
+		t.Fatalf("expression.Body is not LetStatement")
+	}
+
+	t.Errorf(expression.String())
+}
+
+func TestSwitchExpression(t *testing.T) {
+	var input string = `
+	switch (x) {
+	case 1 {
+		let x=x+1
+	}
+	case 2 {
+		let x=x+2
+	}
+	default {
+		let x=x+3
+	}
+	}`
+	l := lexer.New(input)
+	var p *Parser = New(l)
+	var program *ast.Program = p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Body does not contain %d statements. got=%d",
+			1, len(program.Statements))
+	}
+
+	statement, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement, got=%T",
+			program.Statements[0])
+	}
+
+	expression, ok := statement.Expression.(*ast.SwitchExpression)
+	if !ok {
+		t.Fatalf("statement.Expression is not ast.SwitchExpression. got=%T",
+			statement.Expression)
+	}
+
+	if !testIdentifier(t, expression.Value, "x") {
+		return
+	}
+}

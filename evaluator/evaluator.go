@@ -41,7 +41,7 @@ func evaluateProgram(
 // return value objects keeps them as the return value object so
 // return values in nested block can still cause an outer statement 
 // to return
-func evaluateBlockStatements(
+func evaluateBlockStatement(
 	block *ast.BlockStatement,
 	env *object.Environment,
 ) object.Object {
@@ -323,6 +323,62 @@ func evaluateIfExpression(
 	}
 }
 
+func evaluateWhileExpression(
+	we *ast.WhileExpression,
+	env *object.Environment,
+) object.Object {
+	returnValue := &object.Boolean{Value: true}
+
+	for {
+		condition := Evaluate(we.Condition, env)
+		if isError(condition) {
+			return condition
+		}
+		if isTruthy(condition) {
+			returnValue := Evaluate(we.Body, env)
+			if returnValue.Type() == object.RETURN_VALUE_OBJ || returnValue.Type() == object.ERROR_OBJ {
+				return returnValue
+			}
+		} else {
+			break
+		}
+	}
+	return returnValue
+}
+
+func evaluateSwitchExpression(
+	se *ast.SwitchExpression,
+	env *object.Environment,
+) object.Object {
+	value := Evaluate(se.Value, env)
+	if isError(value) {
+		return value
+	}
+
+	for _, choice := range se.Cases {
+		if choice.Default {
+			continue
+		}
+
+		out := Evaluate(choice.Value, env)
+		if isError(out) {
+			return out
+		}
+
+		if value.Type() == out.Type() && value.Inspect() == out.Inspect() {
+			return evaluateBlockStatement(choice.Body, env)
+		}
+	}
+
+	for _, choice := range se.Cases {
+		if choice.Default {
+			return evaluateBlockStatement(choice.Body, env)
+		}
+	}
+
+	return nil
+}
+
 // evaluates a slice of expressions and returns a corresponding slice of
 // the resulting objects from the given enviroment. Used to evaluate the
 // parameters of a function call
@@ -482,7 +538,7 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 		return evaluateProgram(node, env)
 
 	case *ast.BlockStatement:
-		return evaluateBlockStatements(node, env)
+		return evaluateBlockStatement(node, env)
 	
 	case *ast.ReturnStatement:
 		value := Evaluate(node.ReturnValue, env)
@@ -498,6 +554,7 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 			return value
 		}
 		env.Set(node.Name.Value, value)
+		return value
 	
 	case *ast.ExpressionStatement:
 		return Evaluate(node.Expression, env)
@@ -552,6 +609,12 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 	case *ast.IfExpression:
 		return evaluateIfExpression(node, env)
 	
+	case *ast.WhileExpression:
+		return evaluateWhileExpression(node, env)
+	
+	case *ast.SwitchExpression:
+		return evaluateSwitchExpression(node, env)
+
 	case *ast.FunctionLiteral:
 		// creates a function object with the function literal node's 
 		// parameters and body plus the outer environment for the node

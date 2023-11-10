@@ -75,25 +75,39 @@ var builtins = map[string]*object.Builtin{
 				return newError("wrong number of arguments. got=%d, want=2",
 					len(args))
 			}
-			if args[0].Type() != object.ARRAY_OBJ {
-				return newError("argument to `push` must be ARRAY, got %s",
+
+			switch args[0].Type() {
+			case object.ARRAY_OBJ:
+				array := args[0].(*object.Array)
+				length := len(array.Elements)
+				capacity := cap(array.Elements)
+
+				if capacity > length {
+					array.Elements[length] = args[1]
+					return array
+				}
+
+				newElements := make([]object.Object, length + 1, length + 1)
+				copy(newElements, array.Elements)
+				newElements[length] = args[1]
+
+				return &object.Array{Elements: newElements}
+			case object.STRING_OBJ:
+				if args[1].Type() != object.RUNE_OBJ {
+					return newError("argument 2 to `push` must be RUNE, got %s",
+						args[1].Type())
+				}
+
+				str := args[0].(*object.String)
+				char := args[1].(*object.Rune)
+				newStr := []rune(str.Value)
+				newStr = append(newStr, char.Value)
+				return &object.String{Value: string(newStr)}
+			default:
+				return newError("argument to `push` must be ARRAY or STRING, got %s",
 					args[0].Type())
+
 			}
-			
-			array := args[0].(*object.Array)
-			length := len(array.Elements)
-			capacity := cap(array.Elements)
-
-			if capacity > length {
-				array.Elements[length] = args[1]
-				return array
-			}
-
-			newElements := make([]object.Object, length + 1, length + 1)
-			copy(newElements, array.Elements)
-			newElements[length] = args[1]
-
-			return &object.Array{Elements: newElements}
 		},	
 	},
 

@@ -36,6 +36,21 @@ func TestNextToken(t *testing.T) {
 	10 % 9;
 	'a';
 	0.333;
+	while (x > y) {
+		let x = x - 1;
+	}
+	
+	switch (x) {
+	case true {
+		a
+	}
+	case false {
+		b
+	}
+	default {
+		c
+	}
+	}
 	`
 
 	tests := []struct {
@@ -144,6 +159,41 @@ func TestNextToken(t *testing.T) {
 		{token.SCOLON, ";"},
 		{token.FLOAT, "0.333"},
 		{token.SCOLON, ";"},
+		{token.WHILE, "while"},
+		{token.OPAREN, "("},
+		{token.IDENT, "x"},
+		{token.GT, ">"},
+		{token.IDENT, "y"},
+		{token.CPAREN, ")"},
+		{token.OBRACE, "{"},
+		{token.LET, "let"},
+		{token.IDENT, "x"},
+		{token.ASSIGN, "="},
+		{token.IDENT, "x"},
+		{token.MINUS, "-"},
+		{token.INT, "1"},
+		{token.SCOLON, ";"},
+		{token.CBRACE, "}"},
+		{token.SWITCH, "switch"},
+		{token.OPAREN, "("},
+		{token.IDENT, "x"},
+		{token.CPAREN, ")"},
+		{token.OBRACE, "{"},
+		{token.CASE, "case"},
+		{token.TRUE, "true"},
+		{token.OBRACE, "{"},
+		{token.IDENT, "a"},
+		{token.CBRACE, "}"},
+		{token.CASE, "case"},
+		{token.FALSE, "false"},
+		{token.OBRACE, "{"},
+		{token.IDENT, "b"},
+		{token.CBRACE, "}"},
+		{token.DEFAULT, "default"},
+		{token.OBRACE, "{"},
+		{token.IDENT, "c"},
+		{token.CBRACE, "}"},
+		{token.CBRACE, "}"},
 		{token.EOF, ""},
 	}
 

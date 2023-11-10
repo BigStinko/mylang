@@ -244,6 +244,23 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return expression
 }
 
+// parses the statements in brakets
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	block := &ast.BlockStatement{Token: p.currentToken}
+	block.Statements = []ast.Statement{}
+
+	p.advanceTokens()
+
+	for p.currentToken.Type != token.CBRACE && p.currentToken.Type != token.EOF {
+		statement := p.parseStatement()
+		if statement != nil {
+			block.Statements = append(block.Statements, statement)
+		}
+		p.advanceTokens()
+	}
+	return block
+}
+
 // constructs an if and if/else expression
 func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.currentToken}
@@ -278,21 +295,93 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	return expression
 }
 
-// parses the statements in brakets
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.currentToken}
-	block.Statements = []ast.Statement{}
+func (p *Parser) parseWhileExpression() ast.Expression {
+	expression := &ast.WhileExpression{Token: p.currentToken}
+	
+	if !p.expectedToken(token.OPAREN) {
+		return nil
+	}
+
+	p.advanceTokens()
+	expression.Condition = p.parseExpression(LOWEST)
+	
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
+	if !p.expectedToken(token.OBRACE) {
+		return nil
+	}
+
+	expression.Body = p.parseBlockStatement()
+	
+	return expression
+}
+
+func (p *Parser) parseSwitchExpression() ast.Expression {
+	expression := &ast.SwitchExpression{Token: p.currentToken}
+
+	if !p.expectedToken(token.OPAREN) {
+		return nil
+	}
+
+	p.advanceTokens()
+	expression.Value = p.parseExpression(LOWEST)
+
+	if expression.Value == nil {
+		return nil
+	}
+
+	if !p.expectedToken(token.CPAREN) {
+		return nil
+	}
+	if !p.expectedToken(token.OBRACE) {
+		return nil
+	}
 
 	p.advanceTokens()
 
-	for p.currentToken.Type != token.CBRACE && p.currentToken.Type != token.EOF {
-		statement := p.parseStatement()
-		if statement != nil {
-			block.Statements = append(block.Statements, statement)
+	for p.currentToken.Type != token.CBRACE {
+		if p.currentToken.Type == token.EOF {
+			p.errors = append(p.errors, "switch statement missing CBRACE")
+			return nil
+		}
+		
+		caseExpr := &ast.CaseExpression{Token: p.currentToken}
+
+		switch p.currentToken.Type {
+		case token.DEFAULT:
+			caseExpr.Default = true
+		case token.CASE:
+			p.advanceTokens()
+			caseExpr.Value = p.parseExpression(LOWEST)
+		default:
+			p.errors = append(p.errors,
+				fmt.Sprintf("expected case or default, got %s",
+					p.currentToken.Type))
+			return nil
+		}
+
+		if !p.expectedToken(token.OBRACE) {
+			var msg string = fmt.Sprintf("expected token to be '{', got %s instead",
+				p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			return  nil
+		}
+
+		caseExpr.Body = p.parseBlockStatement()
+
+		if p.currentToken.Type != token.CBRACE {
+			var msg string = fmt.Sprintf("expected token to be '}', got %s instead",
+				p.currentToken.Type)
+			p.errors = append(p.errors, msg)
+			return nil
 		}
 		p.advanceTokens()
+
+		expression.Cases = append(expression.Cases, caseExpr)
 	}
-	return block
+
+	return expression
 }
 
 // used to parse the parameters of a function. Makes sure they are
@@ -559,6 +648,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
 	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
 	p.prefixParseFunctions[token.IF] = p.parseIfExpression
+	p.prefixParseFunctions[token.WHILE] = p.parseWhileExpression
+	p.prefixParseFunctions[token.SWITCH] = p.parseSwitchExpression
 	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
 	p.prefixParseFunctions[token.OBRACKET] = p.parseArrayLiteral
 	p.prefixParseFunctions[token.OBRACE] = p.parseHashLiteral

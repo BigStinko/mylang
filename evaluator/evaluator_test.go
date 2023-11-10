@@ -469,7 +469,7 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`rest([1, 2, 3])`, []int{2, 3}},
 		{`rest([])`, nil},
 		{`push([], 1)`, []int{1}},
-		{`push(1, 1)`, "argument to `push` must be ARRAY, got INTEGER"},
+		{`push(1, 1)`, "argument to `push` must be ARRAY or STRING, got INTEGER"},
 		{`pop([])`, nil},
 		{`pop([1, 2, 3])`, 3},
 	}
@@ -674,4 +674,41 @@ func TestHashIndexExpressions(t *testing.T) {
 			testNullObject(t, evaluated)
 		}
 	}
+}
+
+func TestWhileExpression(t *testing.T) {
+	var input string = `
+	let x = 1;
+	let sum = 0;
+	let up = 100;
+	while (x < up) {
+		let sum = sum + x;
+		let x = x + 1;
+	}
+	sum
+	`
+
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 4950)
+}
+
+func TestSwitchExpression(t *testing.T) {
+	var input string = `
+	let x = "hello"
+	let sum = 10
+	switch (x) {
+		case "goodbye" {
+			let sum = 20
+		}
+		case "hello" {
+			let sum = 30
+		}
+		default {
+			let sum = 40
+		}
+	}
+	sum
+	`
+	evaluated := testEval(input)
+	testIntegerObject(t, evaluated, 30)
 }

@@ -123,7 +123,6 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
-
 type BlockStatement struct {
 	Token token.Token
 	Statements []Statement
@@ -353,6 +352,78 @@ func (ie *IfExpression) String() string {
 		out.WriteString("else ")
 		out.WriteString(ie.Alternative.String())
 	}
+
+	return out.String()
+}
+
+
+type WhileExpression struct {
+	Token token.Token
+	Condition Expression
+	Body *BlockStatement
+}
+
+func (we *WhileExpression) expressionNode() {}
+func (we *WhileExpression) TokenLiteral() string { return we.Token.Literal }
+func (we *WhileExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("while (")
+	out.WriteString(we.Condition.String())
+	out.WriteString(") {")
+	out.WriteString(we.Body.String())
+	out.WriteString("}")
+
+	return out.String()
+}
+
+
+type CaseExpression struct {
+	Token token.Token
+	Default bool
+	Value Expression
+	Body *BlockStatement
+}
+
+func (ce *CaseExpression) expressionNode() {}
+func (ce *CaseExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CaseExpression) String() string {
+	var out bytes.Buffer
+
+	if ce.Default {
+		out.WriteString("default ")
+	} else {
+		out.WriteString("case ")
+		out.WriteString(ce.Value.String())
+	}
+	out.WriteString(" {")
+	out.WriteString(ce.Body.String())
+	out.WriteString("}")
+	
+	return out.String()
+}
+
+
+type SwitchExpression struct {
+	Token token.Token
+	Value Expression
+	Cases []*CaseExpression
+}
+
+func (se *SwitchExpression) expressionNode() {}
+func (se *SwitchExpression) TokenLiteral() string { return se.Token.Literal }
+func (se *SwitchExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("switch (")
+	out.WriteString(se.Value.String())
+	out.WriteString(") {\n")
+	for _, c := range se.Cases {
+		if c != nil {
+			out.WriteString(c.String())
+		}
+	}
+	out.WriteString("}")
 
 	return out.String()
 }

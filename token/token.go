@@ -51,7 +51,11 @@ const (
 	OR = "OR"
 	IF = "IF"
 	ELSE = "ELSE"
+	WHILE = "WHILE"
+	SWITCH = "SWTICH"
+	CASE = "CASE"
 	RETURN = "RETURN"
+	DEFAULT = "DEFAULT"
 )
 
 var keywords = map[string]TokenType{
@@ -63,6 +67,10 @@ var keywords = map[string]TokenType{
 	"or": OR,
 	"if": IF,
 	"else": ELSE,
+	"while": WHILE,
+	"switch": SWITCH,
+	"case": CASE,
+	"default": DEFAULT,
 	"return": RETURN,
 }
 
