@@ -1,8 +1,11 @@
 package evaluator
 
 import (
+	"bytes"
 	"fmt"
 	"mylang/object"
+	"os/exec"
+	"regexp"
 )
 
 var builtins = map[string]*object.Builtin{
@@ -80,12 +83,6 @@ var builtins = map[string]*object.Builtin{
 			case object.ARRAY_OBJ:
 				array := args[0].(*object.Array)
 				length := len(array.Elements)
-				capacity := cap(array.Elements)
-
-				if capacity > length {
-					array.Elements[length] = args[1]
-					return array
-				}
 
 				newElements := make([]object.Object, length + 1, length + 1)
 				copy(newElements, array.Elements)
@@ -230,4 +227,73 @@ var builtins = map[string]*object.Builtin{
 			return NULL
 		},
 	},
+
+	"type": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			
+			return &object.String{Value: string(args[0].Type())}
+		},
+	},
+
+	"command": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			str, ok := args[0].(*object.String)
+			if !ok {
+				return newError("argument to `command` must be STRING. got=%q",
+					args[0].Type())
+			}
+
+			fmt.Print("run")
+			r := regexp.MustCompile(`[^\s"']+|"([^"]*)"|'([^']*)`)
+			res := r.FindAllString(str.Value, -1)
+
+			var result []string
+			for _, e := range res {
+				result = append(result, trimQuotes(e, '"'))
+			}
+			cmd := exec.Command(result[0], result[1:]...)
+
+			var outb, errb bytes.Buffer
+			cmd.Stdout = &outb
+			cmd.Stderr = &errb
+			err := cmd.Run()
+			
+			if err != nil && err != err.(*exec.ExitError) {
+				fmt.Printf("%s' failed : %s\n", str.Value, err.Error())
+				return NULL
+			}
+
+			stdout := &object.String{Value: outb.String()}
+			stderr := &object.String{Value: errb.String()}
+
+			stdoutKey := &object.String{Value: "stdout"}
+			stdoutPair := object.HashPair{Key: stdoutKey, Value: stdout}
+
+			stderrKey := &object.String{Value: "stderr"}
+			stderrPair := object.HashPair{Key: stderrKey, Value: stderr}
+
+			newHash := make(map[object.HashKey]object.HashPair)
+			newHash[stdoutKey.HashKey()] = stdoutPair
+			newHash[stderrKey.HashKey()] = stderrPair
+
+			return &object.Hash{Pairs: newHash}
+		},
+	},
+}
+
+func trimQuotes(in string, c byte) string {
+	if len(in) >= 2 {
+		if in[0] == c && in[len(in) - 1] == c {
+			return in[1 : len(in) - 1]
+		}
+	}
+	return in
 }

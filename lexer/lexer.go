@@ -129,6 +129,37 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() (tok token.Token) {
 	l.skipWhitespace()
 
+	// skip single line comment
+	if l.char == rune('/') && l.peekChar() == rune('/') {
+		for l.char != '\n' && l.char != rune(0) {
+			l.readChar()
+		}
+		l.skipWhitespace()
+
+		return l.NextToken()
+	}
+
+	// skipe block comment
+	if l.char == rune('/') && l.peekChar() == rune('*') {
+		var end bool = false
+
+		for !end {
+			if l.char == rune(0) {
+				end = true
+			}
+
+			if l.char == '*' && l.peekChar() == '/' {
+				end = true
+
+				l.readChar()
+			}
+
+			l.readChar()
+		}
+
+		l.skipWhitespace()
+	}
+
 	switch l.char {
 	case '=':
 		if l.peekChar() == '=' {
