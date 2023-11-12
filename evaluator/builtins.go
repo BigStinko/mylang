@@ -147,6 +147,57 @@ var builtins = map[string]*object.Builtin{
 		},
 	},
 
+	"keys": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			if args[0].Type() != object.HASH_OBJ {
+				return newError("argument to `keys` must be HASH, got %s",
+					args[0].Type())
+			}
+
+			hashObj := args[0].(*object.Hash)
+			newElements := make([]object.Object, len(hashObj.Pairs))
+			var i int = 0
+
+			for _, pair := range hashObj.Pairs {
+				newElements[i] = pair.Key
+				i += 1
+			}
+
+			return &object.Array{Elements: newElements}
+		},
+	},
+
+	"delete": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("wrong number of arguments. got=%d, want=2",
+					len(args))
+			}
+			if args[0].Type() != object.HASH_OBJ {
+				return newError("argument 1 to `delete` must be HASH, got %s",
+					args[0].Type())
+			}
+
+			key, ok := args[1].(object.Hashable)
+			if !ok {
+				return newError("argument 2 to `delete` must be hashable, got %s",
+					args[0].Type())
+			}
+
+			hashObj := args[0].(*object.Hash)
+
+			hashKey := key.HashKey()
+			delete(hashObj.Pairs, hashKey)
+			
+			return NULL
+		},
+	},
+
+
 	"assign": {
 		Function: func(args ...object.Object) object.Object {
 			if len(args) != 3 {
