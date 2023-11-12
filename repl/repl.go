@@ -14,7 +14,7 @@ import (
 
 const PROMPT = ">> "
 
-func printParseErrors(out io.Writer, errors []string) {
+func PrintParseErrors(out io.Writer, errors []string) {
 	for _, msg := range errors {
 		io.WriteString(out, "\t" + msg + "\n")
 	}
@@ -40,7 +40,7 @@ func Start(in io.Reader, out io.Writer) {
 		var program *ast.Program = p.ParseProgram()
 		
 		if len(p.Errors()) != 0 {
-			printParseErrors(out, p.Errors())
+			PrintParseErrors(out, p.Errors())
 			continue
 		}
 

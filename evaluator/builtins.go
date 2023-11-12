@@ -434,4 +434,33 @@ var builtins = map[string]*object.Builtin{
 			return TRUE
 		},
 	},
+
+	"args": {
+		Function: func(args ...object.Object) object.Object {
+
+			switch len(args) {
+			case 0:
+				length := len(os.Args[1:])
+				out := make([]object.Object, length)
+				for i, arg := range os.Args[1:] {
+				out[i] = &object.String{Value: arg}
+				}
+				return &object.Array{Elements: out}
+			case 1:
+				if args[0].Type() != object.INTEGER_OBJ {
+					return newError("argument to `args` must be INTEGER. got=%q",
+						args[0].Type())
+				}
+				index := args[0].(*object.Integer).Value
+				osArgs := os.Args[1:]
+				if index > int64(len(osArgs)) - 1 || index < 0 {
+					return newError("out of bounds index")
+				}
+				return &object.String{Value: osArgs[index]}
+			default:
+				return newError("wrong number of arguments. got=%d, want 0 or 1",
+					len(args))
+			}
+		},
+	},
 }
