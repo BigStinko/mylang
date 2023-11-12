@@ -1,10 +1,12 @@
 package object
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"hash/fnv"
 	"mylang/ast"
+	"os"
 	"strings"
 )
 
@@ -25,6 +27,7 @@ const (
 	BUILTIN_OBJ = "BUILTIN"
 	ARRAY_OBJ = "ARRAY"
 	HASH_OBJ = "HASH"
+	FILE_OBJ = "FILE"
 )
 
 // wrapper for values used by evaluator
@@ -82,6 +85,17 @@ type String struct {
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string { return s.Value }
+
+
+type File struct {
+	Path string
+	Reader *bufio.Reader
+	Writer *bufio.Writer
+	Handle *os.File
+}
+
+func (f *File) Type() ObjectType { return FILE_OBJ }
+func (f *File) Inspect() string { return fmt.Sprint(f.Path) }
 
 
 type Array struct {

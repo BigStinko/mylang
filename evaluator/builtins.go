@@ -1,9 +1,11 @@
 package evaluator
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"mylang/object"
+	"os"
 	"os/exec"
 	"regexp"
 )
@@ -257,8 +259,14 @@ var builtins = map[string]*object.Builtin{
 
 			var result []string
 			for _, e := range res {
-				result = append(result, trimQuotes(e, '"'))
+				if len(e) >= 2 {
+					if e[0] == '"' && e[len(e) - 1] == '"' {
+						e = e[1 : len(e) - 1]
+					}
+				}
+				result = append(result, e)
 			}
+
 			cmd := exec.Command(result[0], result[1:]...)
 
 			var outb, errb bytes.Buffer
@@ -287,13 +295,143 @@ var builtins = map[string]*object.Builtin{
 			return &object.Hash{Pairs: newHash}
 		},
 	},
-}
 
-func trimQuotes(in string, c byte) string {
-	if len(in) >= 2 {
-		if in[0] == c && in[len(in) - 1] == c {
-			return in[1 : len(in) - 1]
-		}
-	}
-	return in
+	"open": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) > 2 {
+				return newError("wrong number of arguments. got=%d, want=2",
+					len(args))
+			}
+			if args[0].Type() != object.STRING_OBJ {
+				return newError("argument 1 to `open` must be STRING. got=%q",
+					args[0].Type())
+			}
+			var mode string
+			if len(args) > 1 {
+				if args[1].Type() != object.STRING_OBJ {
+					return newError("argument 2 to `open` must be STRING. got=%q",
+						args[1].Type())
+				}
+
+				mode = args[1].(*object.String).Value
+			}
+
+			var path string = args[0].(*object.String).Value
+
+			md := os.O_RDONLY
+
+			if mode == "w" {
+				md = os.O_WRONLY
+				os.Remove(path)
+			} else if mode == "wa" || mode == "aw" {
+				md = os.O_WRONLY | os.O_APPEND
+			}
+
+			file, err := os.OpenFile(path, os.O_CREATE | md, 0644)
+			if err != nil {
+				return newError(err.Error())
+			}
+
+			fileObj := &object.File{Handle: file, Path: path}
+
+			if md == os.O_RDONLY {
+				fileObj.Reader = bufio.NewReader(file)
+			} else {
+				fileObj.Writer = bufio.NewWriter(file)
+			}
+
+			return fileObj
+		},
+	},
+
+	"close": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			if args[0].Type() != object.FILE_OBJ {
+				return newError("argument to `close` must be FILE. got=%q",
+					args[0].Type())
+			}
+
+			file := args[0].(*object.File).Handle
+			file.Close()
+			return TRUE
+		},	
+	},
+
+	"read": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			if args[0].Type() != object.FILE_OBJ {
+				return newError("argument to `read` must be FILE. got=%q",
+					args[0].Type())
+			}
+
+			file := args[0].(*object.File)
+			if file.Reader == nil {
+				return &object.String{Value: ""}
+			}
+
+			out, err := file.Reader.ReadString('\n')
+			if err != nil {
+				return &object.String{Value: out}
+			}
+
+			return &object.String{Value: out}
+		},	
+	},
+	
+	"write": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("wrong number of arguments. got=%d, want=2",
+					len(args))
+			}
+			if args[0].Type() != object.FILE_OBJ {
+				return newError("argument 1 to `write` must be FILE. got=%q",
+					args[0].Type())
+			}
+
+			file := args[0].(*object.File)
+
+			if file.Writer == nil {
+				return FALSE
+			}
+
+			_, err := file.Writer.Write([]byte(args[1].Inspect()))
+			if err == nil {
+				file.Writer.Flush()
+				return TRUE
+			}
+
+			return FALSE
+		},	
+	},
+
+	"remove": {
+		Function: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			if args[0].Type() != object.FILE_OBJ {
+				return newError("argument 1 to `remove` must be FILE. got=%q",
+					args[0].Type())
+			}
+
+			file := args[0].(*object.File)
+
+			err := os.Remove(file.Path)
+			if err != nil {
+				return &object.String{Value: err.Error()}
+			}
+
+			return TRUE
+		},
+	},
 }
