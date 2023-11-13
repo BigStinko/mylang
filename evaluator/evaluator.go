@@ -14,6 +14,129 @@ var (
 	FALSE = &object.Boolean{Value: false}
 )
 
+// recursively evaluates every kind of node in the ast
+func Evaluate(node ast.Node, env *object.Environment) object.Object {
+	switch node := node.(type) {
+
+	// statements
+	case *ast.Program:
+		return evaluateProgram(node, env)
+
+	case *ast.BlockStatement:
+		return evaluateBlockStatement(node, env)
+	
+	case *ast.ReturnStatement:
+		value := Evaluate(node.ReturnValue, env)
+		if isError(value) {
+			return value
+		}
+		return &object.ReturnValue{Value: value}
+	
+	case *ast.LetStatement:
+		// connects a value with an identifier in the environment
+		value := Evaluate(node.Value, env)
+		if isError(value) {
+			return value
+		}
+		env.Set(node.Name.Value, value)
+		return value
+	
+	case *ast.ExpressionStatement:
+		return Evaluate(node.Expression, env)
+	
+	// expressions
+	case *ast.PrefixExpression:
+		right := Evaluate(node.Right, env)
+		if isError(right) {
+			return right
+		}
+		return evaluatePrefixOperator(node.Token, right)
+	
+	case *ast.InfixExpression:
+		left := Evaluate(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		right := Evaluate(node.Right, env)
+		if isError(right) {
+			return right
+		}
+		return evaluateInfixOperator(node.Token, left, right)
+	
+	case *ast.Identifier:
+		return evaluateIdentifier(node, env)
+	
+	case *ast.IntegerLiteral:
+		return &object.Integer{Value: node.Value}
+	
+	case *ast.FloatLiteral:
+		return &object.Float{Value: node.Value}
+
+	case *ast.RuneLiteral:
+		return &object.Rune{Value: node.Value}
+
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
+
+	case *ast.BooleanLiteral:
+		return getBoolObject(node.Value)
+	
+	case *ast.ArrayLiteral:
+		elements := evaluateExpressions(node.Elements, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+		return &object.Array{Elements: elements}
+
+	case *ast.HashLiteral:
+		return evaluateHashLiteral(node, env)
+
+	case *ast.IfExpression:
+		return evaluateIfExpression(node, env)
+	
+	case *ast.WhileExpression:
+		return evaluateWhileExpression(node, env)
+	
+	case *ast.SwitchExpression:
+		return evaluateSwitchExpression(node, env)
+
+	case *ast.FunctionLiteral:
+		// creates a function object with the function literal node's 
+		// parameters and body plus the outer environment for the node
+		return &object.Function{
+			Parameters: node.Parameters,
+			Environment: env,
+			Body: node.Body,
+		}
+	
+	case *ast.CallExpression:
+		// evaluates a function call expression 
+		function := Evaluate(node.Function, env)
+		if isError(function) {
+			return function
+		}
+		args := evaluateExpressions(node.Arguments, env)
+		if len(args) == 1 && isError(args[0]) {
+			return args[0]
+		}
+
+		return applyFunction(function, args)
+	
+	case *ast.IndexExpression:
+		left := Evaluate(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Evaluate(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evaluateIndexExpression(left, index)
+	}
+
+	return nil
+}
+
 // calls evaluate on every statment in a program. If it encounters
 // a returnValue then it stops evaluation there. Used by Evaluate 
 // function to evaluate a program node
@@ -527,127 +650,4 @@ func evaluateHashLiteral(
 	}
 
 	return &object.Hash{Pairs: pairs}
-}
-
-// recursively evaluates every kind of node in the ast
-func Evaluate(node ast.Node, env *object.Environment) object.Object {
-	switch node := node.(type) {
-
-	// statements
-	case *ast.Program:
-		return evaluateProgram(node, env)
-
-	case *ast.BlockStatement:
-		return evaluateBlockStatement(node, env)
-	
-	case *ast.ReturnStatement:
-		value := Evaluate(node.ReturnValue, env)
-		if isError(value) {
-			return value
-		}
-		return &object.ReturnValue{Value: value}
-	
-	case *ast.LetStatement:
-		// connects a value with an identifier in the environment
-		value := Evaluate(node.Value, env)
-		if isError(value) {
-			return value
-		}
-		env.Set(node.Name.Value, value)
-		return value
-	
-	case *ast.ExpressionStatement:
-		return Evaluate(node.Expression, env)
-	
-	// expressions
-	case *ast.PrefixExpression:
-		right := Evaluate(node.Right, env)
-		if isError(right) {
-			return right
-		}
-		return evaluatePrefixOperator(node.Token, right)
-	
-	case *ast.InfixExpression:
-		left := Evaluate(node.Left, env)
-		if isError(left) {
-			return left
-		}
-		right := Evaluate(node.Right, env)
-		if isError(right) {
-			return right
-		}
-		return evaluateInfixOperator(node.Token, left, right)
-	
-	case *ast.Identifier:
-		return evaluateIdentifier(node, env)
-	
-	case *ast.IntegerLiteral:
-		return &object.Integer{Value: node.Value}
-	
-	case *ast.FloatLiteral:
-		return &object.Float{Value: node.Value}
-
-	case *ast.RuneLiteral:
-		return &object.Rune{Value: node.Value}
-
-	case *ast.StringLiteral:
-		return &object.String{Value: node.Value}
-
-	case *ast.BooleanLiteral:
-		return getBoolObject(node.Value)
-	
-	case *ast.ArrayLiteral:
-		elements := evaluateExpressions(node.Elements, env)
-		if len(elements) == 1 && isError(elements[0]) {
-			return elements[0]
-		}
-		return &object.Array{Elements: elements}
-
-	case *ast.HashLiteral:
-		return evaluateHashLiteral(node, env)
-
-	case *ast.IfExpression:
-		return evaluateIfExpression(node, env)
-	
-	case *ast.WhileExpression:
-		return evaluateWhileExpression(node, env)
-	
-	case *ast.SwitchExpression:
-		return evaluateSwitchExpression(node, env)
-
-	case *ast.FunctionLiteral:
-		// creates a function object with the function literal node's 
-		// parameters and body plus the outer environment for the node
-		return &object.Function{
-			Parameters: node.Parameters,
-			Environment: env,
-			Body: node.Body,
-		}
-	
-	case *ast.CallExpression:
-		// evaluates a function call expression 
-		function := Evaluate(node.Function, env)
-		if isError(function) {
-			return function
-		}
-		args := evaluateExpressions(node.Arguments, env)
-		if len(args) == 1 && isError(args[0]) {
-			return args[0]
-		}
-
-		return applyFunction(function, args)
-	
-	case *ast.IndexExpression:
-		left := Evaluate(node.Left, env)
-		if isError(left) {
-			return left
-		}
-		index := Evaluate(node.Index, env)
-		if isError(index) {
-			return index
-		}
-		return evaluateIndexExpression(left, index)
-	}
-
-	return nil
 }
