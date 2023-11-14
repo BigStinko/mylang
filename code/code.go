@@ -28,8 +28,16 @@ const (
 	OpNot
 	OpTrue
 	OpFalse
+	OpArray
+	OpHash
+	OpIndex
+	OpCall
+	OpReturn
+	OpReturnValue
 	OpJump
 	OpJumpFalse
+	OpSetGlobal
+	OpGetGlobal
 	OpPop
 	OpNull
 )
@@ -47,8 +55,16 @@ var definitions = map[Opcode]*Definition{
 	OpNot: {"OpNot", []int{}},
 	OpTrue: {"OpTrue", []int{}},
 	OpFalse: {"OpFalse", []int{}},
+	OpArray: {"OpArray", []int{2}},
+	OpHash: {"OpHash", []int{2}},
+	OpIndex: {"OpIndex", []int{}},
+	OpCall: {"OpCall", []int{}},
+	OpReturn: {"OpReturn", []int{}},
+	OpReturnValue: {"OpReturnValue", []int{}},
 	OpJump: {"OpJump", []int{2}},
 	OpJumpFalse: {"OpJumpFalse", []int{2}},
+	OpSetGlobal: {"OpSetGlobal", []int{2}},
+	OpGetGlobal: {"OpGetGlobal", []int{2}},
 	OpPop: {"OpPop", []int{}},
 	OpNull: {"OpNull", []int{}},
 }

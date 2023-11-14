@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
-	"mylang/ast"
 	"os"
 	"strings"
+	"mylang/ast"
+	"mylang/code"
 )
 
 type ObjectType string
@@ -23,6 +24,7 @@ const (
 	STRING_OBJ = "STRING"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	FUNCTION_OBJ = "FUNCTION"
+	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
 	ERROR_OBJ = "ERROR"
 	BUILTIN_OBJ = "BUILTIN"
 	ARRAY_OBJ = "ARRAY"
@@ -206,6 +208,16 @@ func (f *Function) Inspect() string {
 	out.WriteString("\n}")
 
 	return out.String()
+}
+
+
+type CompiledFunction struct {
+	Instructions code.Instructions
+}
+
+func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
+func (cf *CompiledFunction) Inspect() string {
+	return fmt.Sprintf("CompiledFunction[%p]", cf)
 }
 
 
