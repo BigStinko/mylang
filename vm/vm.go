@@ -34,7 +34,7 @@ type VM struct {
 
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn)
+	mainFrame := NewFrame(mainFn, 0)
 
 	frames := make([]*Frame, MAXFRAMES)
 	frames[0] = mainFrame
@@ -137,26 +137,26 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpCall:
-			fn, ok := vm.stack[vm.sp - 1].(*object.CompiledFunction)
-			if !ok {
-				return fmt.Errorf("calling non-function")
-			}
-			frame := NewFrame(fn)
-			vm.pushFrame(frame)
-		case code.OpReturn:
-			vm.popFrame()
-			vm.pop()
-			err := vm.push(NULL)
+			numArgs := int(uint8(ins[ip + 1]))
+			vm.currentFrame().ip += 1
 
+			err := vm.callFunction(numArgs)
+			if err != nil {
+				return err
+			}
+		case code.OpReturn:
+			frame := vm.popFrame()
+			vm.sp = frame.basePointer - 1
+
+			err := vm.push(NULL)
 			if err != nil {
 				return err
 			}
 		case code.OpReturnValue:
 			returnValue := vm.pop()  // get return value from top of the stack
 
-			vm.popFrame()  // return to the outer frame
-
-			vm.pop()  // take the function call off the stack
+			frame := vm.popFrame()  // return to the outer frame
+			vm.sp = frame.basePointer - 1  // take the function call off the stack
 
 			err := vm.push(returnValue)  // replace function call with return value
 			if err != nil {
@@ -185,6 +185,22 @@ func (vm *VM) Run() error {
 			vm.currentFrame().ip += 2
 
 			err := vm.push(vm.globals[globalIndex])
+			if err != nil {
+				return err
+			}
+		case code.OpSetLocal:
+			localIndex := int(uint8(ins[ip + 1]))
+			vm.currentFrame().ip += 1
+
+			frame := vm.currentFrame()
+
+			vm.stack[frame.basePointer + localIndex] = vm.pop()
+		case code.OpGetLocal:
+			localIndex := int(uint8(ins[ip + 1]))
+			vm.currentFrame().ip += 1
+			frame := vm.currentFrame()
+
+			err := vm.push(vm.stack[frame.basePointer + localIndex])
 			if err != nil {
 				return err
 			}
@@ -241,6 +257,25 @@ func (vm *VM) pushFrame(f *Frame) {
 func (vm *VM) popFrame() *Frame {
 	vm.framesIndex--
 	return vm.frames[vm.framesIndex]
+}
+
+func (vm *VM) callFunction(numArgs int) error {
+	fn, ok := vm.stack[vm.sp - 1 - numArgs].(*object.CompiledFunction)
+	if !ok {
+		return fmt.Errorf("calling non-function")
+	}
+
+	if numArgs != fn.NumParameters {
+		return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
+			fn.NumParameters, numArgs)
+	}
+
+	frame := NewFrame(fn, vm.sp - numArgs)
+	vm.pushFrame(frame)
+
+	vm.sp = frame.basePointer + fn.NumLocals
+
+	return nil
 }
 
 func (vm *VM) executeBinaryOperation(op code.Opcode) error {

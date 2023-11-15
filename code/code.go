@@ -38,6 +38,8 @@ const (
 	OpJumpFalse
 	OpSetGlobal
 	OpGetGlobal
+	OpSetLocal
+	OpGetLocal
 	OpPop
 	OpNull
 )
@@ -58,13 +60,15 @@ var definitions = map[Opcode]*Definition{
 	OpArray: {"OpArray", []int{2}},
 	OpHash: {"OpHash", []int{2}},
 	OpIndex: {"OpIndex", []int{}},
-	OpCall: {"OpCall", []int{}},
+	OpCall: {"OpCall", []int{1}},
 	OpReturn: {"OpReturn", []int{}},
 	OpReturnValue: {"OpReturnValue", []int{}},
 	OpJump: {"OpJump", []int{2}},
 	OpJumpFalse: {"OpJumpFalse", []int{2}},
 	OpSetGlobal: {"OpSetGlobal", []int{2}},
 	OpGetGlobal: {"OpGetGlobal", []int{2}},
+	OpSetLocal: {"OpSetLocal", []int{1}},
+	OpGetLocal: {"OpGetLocal", []int{1}},
 	OpPop: {"OpPop", []int{}},
 	OpNull: {"OpNull", []int{}},
 }
@@ -132,23 +136,25 @@ func Make(op Opcode, operands ...int) []byte {
 		instructionLength += width
 	}
 
-	instuction := make([]byte, instructionLength)
-	instuction[0] = byte(op)  // the first byte of an instruction is the opCode
+	instruction := make([]byte, instructionLength)
+	instruction[0] = byte(op)  // the first byte of an instruction is the opCode
 
 	// starting from the 2d byte adds the operands to the instruction
 	// with the most significant bit going to the lower location in the
 	// array
 	offset := 1 
-	for i, o := range operands {
+	for i, operand := range operands {
 		width := def.OperandWidths[i]
 		switch width {
 		case 2:
-			binary.BigEndian.PutUint16(instuction[offset:], uint16(o))
+			binary.BigEndian.PutUint16(instruction[offset:], uint16(operand))
+		case 1:
+			instruction[offset] = byte(operand)
 		}
 		offset += width
 	}
 
-	return instuction
+	return instruction
 }
 
 // takes the definition of the given operation, and the list of instructions.
@@ -170,6 +176,8 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 		switch width {
 		case 2:
 			operands[i] = int(binary.BigEndian.Uint16(ins[offset:]))
+		case 1:
+			operands[i] = int(uint8(ins[offset]))
 		}
 
 		offset += width

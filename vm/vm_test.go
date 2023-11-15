@@ -114,6 +114,16 @@ func TestHashLiterals(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestGlobalLetStatements(t *testing.T) {
+	tests := []vmTestCase{
+		{"let one = 1; one", 1},
+		{"let one = 1; let two = 2; one + two", 3},
+		{"let one = 1; let two = one + one; one + two", 3},
+	}
+
+	runVmTests(t, tests)
+}
+
 func TestConditionals(t *testing.T) {
 	tests := []vmTestCase{
 		{"if (true) { 10 }", 10},
@@ -223,6 +233,190 @@ func TestFunctionsWithoutReturnValue(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestFirstClassFunctions(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+		let returnsOne = func() { 1; };
+		let returnsOneReturner = func() { returnsOne; };
+		returnsOneReturner()();
+		`,
+			expected: 1,
+		},
+		{
+			input: `
+		let returnsOneReturner = func() {
+			let returnsOne = func() { 1; };
+			returnsOne;
+		};
+		returnsOneReturner()();
+		`,
+			expected: 1,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestCallingFunctionsWithBindings(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+		let one = func() { let one = 1; one };
+		one();
+		`,
+			expected: 1,
+		},
+		{
+			input: `
+		let oneAndTwo = func() { let one = 1; let two = 2; one + two; };
+		oneAndTwo();
+		`,
+			expected: 3,
+		},
+		{
+			input: `
+		let oneAndTwo = func() { let one = 1; let two = 2; one + two; };
+		let threeAndFour = func() { let three = 3; let four = 4; three + four; };
+		oneAndTwo() + threeAndFour();
+		`,
+			expected: 10,
+		},
+		{
+			input: `
+		let firstFoobar = func() { let foobar = 50; foobar; };
+		let secondFoobar = func() { let foobar = 100; foobar; };
+		firstFoobar() + secondFoobar();
+		`,
+			expected: 150,
+		},
+		{
+			input: `
+		let globalSeed = 50;
+		let minusOne = func() {
+			let num = 1;
+			globalSeed - num;
+		}
+		let minusTwo = func() {
+			let num = 2;
+			globalSeed - num;
+		}
+		minusOne() + minusTwo();
+		`,
+			expected: 97,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestCallingFunctionsWithArgumentsAndBindings(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+		let identity = func(a) { a; };
+		identity(4);
+		`,
+			expected: 4,
+		},
+		{
+			input: `
+		let sum = func(a, b) { a + b; };
+		sum(1, 2);
+		`,
+			expected: 3,
+		},
+		{
+			input: `
+		let sum = func(a, b) {
+			let c = a + b;
+			c;
+		};
+		sum(1, 2);
+		`,
+			expected: 3,
+		},
+		{
+			input: `
+		let sum = func(a, b) {
+			let c = a + b;
+			c;
+		};
+		sum(1, 2) + sum(3, 4);`,
+			expected: 10,
+		},
+		{
+			input: `
+		let sum = func(a, b) {
+			let c = a + b;
+			c;
+		};
+		let outer = func() {
+			sum(1, 2) + sum(3, 4);
+		};
+		outer();
+		`,
+			expected: 10,
+		},
+		{
+			input: `
+		let globalNum = 10;
+
+		let sum = func(a, b) {
+			let c = a + b;
+			c + globalNum;
+		};
+
+		let outer = func() {
+			sum(1, 2) + sum(3, 4) + globalNum;
+		};
+
+		outer() + globalNum;
+		`,
+			expected: 50,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestCallingFunctionsWithWrongArguments(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input:    `func() { 1; }(1);`,
+			expected: `wrong number of arguments: want=0, got=1`,
+		},
+		{
+			input:    `func(a) { a; }();`,
+			expected: `wrong number of arguments: want=1, got=0`,
+		},
+		{
+			input:    `func(a, b) { a + b; }(1);`,
+			expected: `wrong number of arguments: want=2, got=1`,
+		},
+	}
+
+	for _, tt := range tests {
+		program := parse(tt.input)
+
+		comp := compiler.New()
+		err := comp.Compile(program)
+		if err != nil {
+			t.Fatalf("compiler error: %s", err)
+		}
+
+		vm := New(comp.MakeBytecode())
+		err = vm.Run()
+		if err == nil {
+			t.Fatalf("expected VM error but resulted in none.")
+		}
+
+		if err.Error() != tt.expected {
+			t.Fatalf("wrong VM error: want=%q, got=%q", tt.expected, err)
+		}
+	}
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 
@@ -245,16 +439,6 @@ func runVmTests(t *testing.T, tests []vmTestCase) {
 
 		testExpectedObject(t, test.expected, stackElem)
 	}
-}
-
-func TestGlobalLetStatements(t *testing.T) {
-	tests := []vmTestCase{
-		{"let one = 1; one", 1},
-		{"let one = 1; let two = 2; one + two", 3},
-		{"let one = 1; let two = one + one; one + two", 3},
-	}
-
-	runVmTests(t, tests)
 }
 
 func parse(input string) *ast.Program {

@@ -1103,8 +1103,6 @@ func TestWhileExpression(t *testing.T) {
 	if !testLetStatement(t, body, "x") {
 		t.Fatalf("expression.Body is not LetStatement")
 	}
-
-	t.Errorf(expression.String())
 }
 
 func TestSwitchExpression(t *testing.T) {
