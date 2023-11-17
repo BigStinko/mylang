@@ -31,6 +31,7 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 	return s
 }
 
+// defines a symbol for the current symbol table
 func (s *SymbolTable) Define(name string) Symbol {
 	symbol := Symbol{
 		Name: name,
@@ -48,6 +49,7 @@ func (s *SymbolTable) Define(name string) Symbol {
 	return symbol
 }
 
+// checks all scopes for the given symbol
 func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
 	if !ok && s.Outer != nil {

@@ -32,6 +32,7 @@ type VM struct {
 	framesIndex int
 }
 
+// creates the vm with the given bytecode added as the main function.
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
 	mainFrame := NewFrame(mainFn, 0)
@@ -65,6 +66,9 @@ func (vm *VM) Run() error {
 		op = code.Opcode(ins[ip])
 
 		switch op {
+		// when the compiler encounters a literal it replaces it with an
+		// OpConstant instruction that tells the vm to push the constant 
+		// from the constant pool to the stack
 		case code.OpConstant:
 			index := binary.BigEndian.Uint16(ins[ip + 1:])
 			vm.currentFrame().ip += 2
@@ -73,6 +77,7 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		
 		case code.OpAdd,
 			code.OpSub,
 			code.OpMul,
@@ -84,26 +89,33 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		
 		case code.OpMinus:
 			err := vm.executeMinusOperator()
 			if err != nil {
 				return err
 			}
+		
 		case code.OpNot:
 			err := vm.executeNotOperator()
 			if err != nil {
 				return err
 			}
+		
 		case code.OpTrue:
 			err := vm.push(TRUE)
 			if err != nil {
 				return err
 			}
+		
 		case code.OpFalse:
 			err := vm.push(FALSE)
 			if err != nil {
 				return err
 			}
+		
+		// builds the array from the elements on top of the stack.
+		// The first operand gives the number of elements in the array
 		case code.OpArray:
 			numElements := int(binary.BigEndian.Uint16(ins[ip + 1:]))
 			vm.currentFrame().ip += 2
@@ -115,6 +127,9 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		
+		// builds the hash from the elements on top of the stack.
+		// the first operand gives the number of keys/values in the hash
 		case code.OpHash:
 			numElements := int(binary.BigEndian.Uint16(ins[ip + 1:]))
 			vm.currentFrame().ip += 2
@@ -123,11 +138,15 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
 			vm.sp = vm.sp - numElements
 			err = vm.push(hash)
 			if err != nil {
 				return nil
 			}
+
+		// takes the index and left values from the top of the stack
+		// for executing the index expression
 		case code.OpIndex:
 			index := vm.pop()
 			left := vm.pop()
@@ -136,6 +155,9 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		
+		// gets the number of arguments passed to the function from
+		// the top of the stack from the first operand of OpCall
 		case code.OpCall:
 			numArgs := int(uint8(ins[ip + 1]))
 			vm.currentFrame().ip += 1
@@ -144,6 +166,11 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		// ( returns from the current function by taking the frame off the
+		// frame stack and setting the stack pointer to the value
+		// it was before the function call. It then puts null on top of
+		// the stack because there were no return values
 		case code.OpReturn:
 			frame := vm.popFrame()
 			vm.sp = frame.basePointer - 1
@@ -152,34 +179,52 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		// returns from the current function by saving the return value
+		// from the top of the stack, and going to the previous frame
+		// sets the stack pointer to the location before the function
+		// call
 		case code.OpReturnValue:
 			returnValue := vm.pop()  // get return value from top of the stack
 
 			frame := vm.popFrame()  // return to the outer frame
-			vm.sp = frame.basePointer - 1  // take the function call off the stack
+			vm.sp = frame.basePointer - 1
 
 			err := vm.push(returnValue)  // replace function call with return value
 			if err != nil {
 				return err
 			}
+
+		// sets the instruction pointer to the location given by the operand
+		// of the jump instruction
 		case code.OpJump:
 			pos := int(binary.BigEndian.Uint16(ins[ip + 1:]))
 			// need to subtract one since ip gets incremented at the end of the loop
 			vm.currentFrame().ip = pos - 1 
+		
+		// gets the location of where to jump, and jumps if the value on top
+		// of the stack is false
 		case code.OpJumpFalse:
 			pos := int(binary.BigEndian.Uint16(ins[ip + 1:]))
 			vm.currentFrame().ip += 2  // advance the pointer to after the instruction
 
 			condition := vm.pop()
 			if !isTruthy(condition) {
-				// if false move instruction pointer to instruction before destination
+				// if false move instruction pointer to instruction be(fore destination
 				vm.currentFrame().ip = pos - 1
 			}
+
+		// takes the index to be associated with the global object from the 
+		// operand of the instruction and assigns the object on top of the
+		// stack to that index in the globals pool
 		case code.OpSetGlobal:
 			globalIndex := binary.BigEndian.Uint16(ins[ip + 1:])
 			vm.currentFrame().ip += 2
 
 			vm.globals[globalIndex] = vm.pop()
+
+		// puts the object assosiated with the index provided by the operand
+		// on top of the stack
 		case code.OpGetGlobal:
 			globalIndex := binary.BigEndian.Uint16(ins[ip + 1:])
 			vm.currentFrame().ip += 2
@@ -188,6 +233,11 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		// takes the index to be associated with the local object from the
+		// operand of the instruction, and takes the value on top of the
+		// stack and puts it at the location determined by the offset of 
+		// the index from the frame's base pointer on the stack
 		case code.OpSetLocal:
 			localIndex := int(uint8(ins[ip + 1]))
 			vm.currentFrame().ip += 1
@@ -195,6 +245,9 @@ func (vm *VM) Run() error {
 			frame := vm.currentFrame()
 
 			vm.stack[frame.basePointer + localIndex] = vm.pop()
+		
+		// puts the object from the stack in the location given by the
+		// operand of the instruction on top of the stack
 		case code.OpGetLocal:
 			localIndex := int(uint8(ins[ip + 1]))
 			vm.currentFrame().ip += 1
@@ -204,8 +257,11 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		
 		case code.OpPop:
 			vm.pop()
+		
+		// puts null on top of the stack
 		case code.OpNull:
 			err := vm.push(NULL)
 			if err != nil {
@@ -217,6 +273,7 @@ func (vm *VM) Run() error {
 	return nil
 }
 
+// returns the value on top of the stack
 func (vm *VM) StackTop() object.Object {
 	if vm.sp == 0 {
 		return nil
@@ -224,10 +281,13 @@ func (vm *VM) StackTop() object.Object {
 	return vm.stack[vm.sp-1]
 }
 
+// returns the value that was most recently taken off the stack
 func (vm *VM) LastPoppedStackElement() object.Object {
 	return vm.stack[vm.sp]
 }
 
+// puts the object on top of the stack and increments the stack pointer
+// first checks if the stack has space
 func (vm *VM) push(obj object.Object) error {
 	if vm.sp >= STACKSIZE {
 		return fmt.Errorf("stack overflow")
@@ -239,26 +299,37 @@ func (vm *VM) push(obj object.Object) error {
 	return nil
 }
 
+// returns the value on top of the stack and decrements the stack pointer
 func (vm *VM) pop() object.Object {
 	obj := vm.stack[vm.sp-1]
 	vm.sp--
 	return obj
 }
 
+// returns the current frame of the vm
 func (vm *VM) currentFrame() *Frame {
 	return vm.frames[vm.framesIndex - 1]
 }
 
+// adds the given frame to the frame stack
 func (vm *VM) pushFrame(f *Frame) {
 	vm.frames[vm.framesIndex] = f
 	vm.framesIndex++
 }
 
+// removes the current frame from the frame stack
 func (vm *VM) popFrame() *Frame {
 	vm.framesIndex--
 	return vm.frames[vm.framesIndex]
 }
 
+// gets the function object from the stack and first checks that the
+// number of arguments given matches the number of parameters to the
+// function. Then creates a new frame for the function with the base
+// pointer being the stack pointer minus the number of arguments to the
+// function. The arguments now sit in the area of the stack given to the
+// function on top of the base pointer. OpGetLocal instructions can now
+// reference these arguments with their offset from the base pointer.(
 func (vm *VM) callFunction(numArgs int) error {
 	fn, ok := vm.stack[vm.sp - 1 - numArgs].(*object.CompiledFunction)
 	if !ok {
@@ -278,6 +349,8 @@ func (vm *VM) callFunction(numArgs int) error {
 	return nil
 }
 
+// executes the binary operation based on the types of the values on top of the
+// stack and the given operation
 func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 	right := vm.pop()
 	left := vm.pop()

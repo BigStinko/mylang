@@ -122,7 +122,7 @@ func Lookup(op byte) (*Definition, error) {
 	return def, nil
 }
 
-// takes an operation and operands and constructs the resulting instruction.
+// takes an operation and operands and constructs an instruction.
 func Make(op Opcode, operands ...int) []byte {
 	def, ok := definitions[op]
 	if !ok {
@@ -139,9 +139,8 @@ func Make(op Opcode, operands ...int) []byte {
 	instruction := make([]byte, instructionLength)
 	instruction[0] = byte(op)  // the first byte of an instruction is the opCode
 
-	// starting from the 2d byte adds the operands to the instruction
-	// with the most significant bit going to the lower location in the
-	// array
+	// starting from the second byte adds the operands to the instruction
+	// with the most significant bit going to the lower location in the	array
 	offset := 1 
 	for i, operand := range operands {
 		width := def.OperandWidths[i]
@@ -157,9 +156,9 @@ func Make(op Opcode, operands ...int) []byte {
 	return instruction
 }
 
-// takes the definition of the given operation, and the list of instructions.
+// takes the definition of the given operation, and the given instruction.
 // Using the definition of the operation, determines the amount of bytes
-// necessary to pull from the instructions for the operands. If the operation 
+// necessary to pull from the instruction for the operands. If the operation 
 // requires two operands each 2 bytes in width it will read the next two bytes 
 // from the program, put it as the first operand, move the offset to after those 
 // bytes and subsequently read the next two bytes for the second operand. 
