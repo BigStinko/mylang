@@ -556,15 +556,16 @@ func applyFunction(
 	args []object.Object,
 ) object.Object {
 	switch fn := fn.(type) {
-	
-	 case *object.Function:
+	case *object.Function:
 		extendedEnv := extendFunctionEnvironment(fn, args)
 		evaluated := Evaluate(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	
 	case *object.Builtin:
-		return fn.Function(args...)
-	
+		if result := fn.Function(args...); result != nil {
+			return result
+		}
+		return NULL
 	default:
 		return newError("not a function: %s", fn.Type())
 	}
