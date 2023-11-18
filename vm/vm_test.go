@@ -463,6 +463,137 @@ func TestBuiltinFunctions(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestClosures(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+		let newClosure = func(a) {
+			func() { a; };
+		};
+		let closure = newClosure(99);
+		closure();
+		`,
+			expected: 99,
+		},
+		{
+			input: `
+		let newAdder = func(a, b) {
+			func(c) { a + b + c };
+		};
+		let adder = newAdder(1, 2);
+		adder(8);
+		`,
+			expected: 11,
+		},
+		{
+			input: `
+		let newAdder = func(a, b) {
+			let c = a + b;
+			func(d) { c + d };
+		};
+		let adder = newAdder(1, 2);
+		adder(8);
+		`,
+			expected: 11,
+		},
+		{
+			input: `
+		let newAdderOuter = func(a, b) {
+			let c = a + b;
+			func(d) {
+				let e = d + c;
+				func(f) { e + f; };
+			};
+		};
+		let newAdderInner = newAdderOuter(1, 2)
+		let adder = newAdderInner(3);
+		adder(8);
+		`,
+			expected: 14,
+		},
+		{
+			input: `
+		let a = 1;
+		let newAdderOuter = func(b) {
+			func(c) {
+				func(d) { a + b + c + d };
+			};
+		};
+		let newAdderInner = newAdderOuter(2)
+		let adder = newAdderInner(3);
+		adder(8);
+		`,
+			expected: 14,
+		},
+		{
+			input: `
+		let newClosure = func(a, b) {
+			let one = func() { a; };
+			let two = func() { b; };
+			func() { one() + two(); };
+		};
+		let closure = newClosure(9, 90);
+		closure();
+		`,
+			expected: 99,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
+func TestRecursiveFunctions(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+		let countDown = func(x) {
+			if (x == 0) {
+				return 0;
+			} else {
+				countDown(x - 1);
+			}
+		};
+		countDown(1);
+		`,
+			expected: 0,
+		},
+		{
+			input: `
+		let countDown = func(x) {
+			if (x == 0) {
+				return 0;
+			} else {
+				countDown(x - 1);
+			}
+		};
+		let wrapper = func() {
+			countDown(1);
+		};
+		wrapper();
+		`,
+			expected: 0,
+		},
+		{
+			input: `
+		let wrapper = func() {
+			let countDown = func(x) {
+				if (x == 0) {
+					return 0;
+				} else {
+					countDown(x - 1);
+				}
+			};
+			countDown(1);
+		};
+		wrapper();
+		`,
+			expected: 0,
+		},
+	}
+
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 
@@ -562,6 +693,17 @@ func testExpectedObject(
 	case *object.Null:
 		if actual != NULL {
 			t.Errorf("object is not Null: %T (%+v)", actual, actual)
+		}
+	case *object.Error:
+		errObj, ok := actual.(*object.Error)
+		if !ok {
+			t.Errorf("object is not Error: %T (%+v)", actual , actual)
+			return
+		}
+
+		if errObj.Message != expected.Message {
+			t.Errorf("wrong error message. expected=%q, got=%q",
+				expected.Message, errObj.Message)
 		}
 	}
 }

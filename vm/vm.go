@@ -1,8 +1,8 @@
 package vm
 
 import (
-	"fmt"
 	"encoding/binary"
+	"fmt"
 	"mylang/code"
 	"mylang/compiler"
 	"mylang/object"
@@ -35,7 +35,8 @@ type VM struct {
 // creates the vm with the given bytecode added as the main function.
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn, 0)
+	mainClosure := &object.Closure{Function: mainFn}
+	mainFrame := NewFrame(mainClosure, 0)
 
 	frames := make([]*Frame, MAXFRAMES)
 	frames[0] = mainFrame
@@ -162,7 +163,7 @@ func (vm *VM) Run() error {
 			numArgs := int(uint8(ins[ip + 1]))
 			vm.currentFrame().ip += 1
 
-			err := vm.callFunction(numArgs)
+			err := vm.executeCall(int(numArgs))
 			if err != nil {
 				return err
 			}
@@ -257,6 +258,44 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		case code.OpGetFree:
+			freeIndex := uint8(ins[ip + 1])
+			vm.currentFrame().ip += 1
+
+			currentClosure := vm.currentFrame().closure
+			err := vm.push(currentClosure.Free[freeIndex])
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetBuiltin:
+			bultinIndex := uint8(ins[ip + 1])
+			vm.currentFrame().ip += 1
+
+			definition := object.Builtins[bultinIndex]
+
+			err := vm.push(definition.Builtin)
+			if err != nil {
+				return err
+			}
+
+		case code.OpClosure:
+			constIndex := int(binary.BigEndian.Uint16(ins[ip + 1:]))
+			numFree := int(uint8(ins[ip + 3]))
+			vm.currentFrame().ip += 3
+
+			err := vm.pushClosure(constIndex, numFree)
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetClosure:
+			currentClosure := vm.currentFrame().closure
+			err := vm.push(currentClosure)
+			if err != nil {
+				return err
+			}
 		
 		case code.OpPop:
 			vm.pop()
@@ -323,6 +362,35 @@ func (vm *VM) popFrame() *Frame {
 	return vm.frames[vm.framesIndex]
 }
 
+func (vm *VM) pushClosure(constIndex, numFree int) error {
+	constant := vm.constants[constIndex]
+	function, ok := constant.(*object.CompiledFunction)
+	if !ok {
+		return fmt.Errorf("not a function: %+v", constant)
+	}
+
+	free := make([]object.Object, numFree)
+	for i := 0; i < numFree; i++ {
+		free[i] = vm.stack[vm.sp - numFree + i]
+	}
+	vm.sp = vm.sp - numFree
+
+	closure := &object.Closure{Function: function, Free: free}
+	return vm.push(closure)
+}
+
+func (vm *VM) executeCall(numArgs int) error {
+	callee := vm.stack[vm.sp - 1 - numArgs]
+	switch callee := callee.(type) {
+	case *object.Closure:
+		return vm.callClosure(callee, numArgs)
+	case *object.Builtin:
+		return vm.callBuiltin(callee, numArgs)
+	default:
+		return fmt.Errorf("calling non-closure and non-builtin")
+	}
+}
+
 // gets the function object from the stack and first checks that the
 // number of arguments given matches the number of parameters to the
 // function. Then creates a new frame for the function with the base
@@ -330,21 +398,31 @@ func (vm *VM) popFrame() *Frame {
 // function. The arguments now sit in the area of the stack given to the
 // function on top of the base pointer. OpGetLocal instructions can now
 // reference these arguments with their offset from the base pointer.(
-func (vm *VM) callFunction(numArgs int) error {
-	fn, ok := vm.stack[vm.sp - 1 - numArgs].(*object.CompiledFunction)
-	if !ok {
-		return fmt.Errorf("calling non-function")
-	}
-
-	if numArgs != fn.NumParameters {
+func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
+	if numArgs != cl.Function.NumParameters {
 		return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
-			fn.NumParameters, numArgs)
+			cl.Function.NumParameters, numArgs)
 	}
 
-	frame := NewFrame(fn, vm.sp - numArgs)
+	frame := NewFrame(cl, vm.sp - numArgs)
 	vm.pushFrame(frame)
 
-	vm.sp = frame.basePointer + fn.NumLocals
+	vm.sp = frame.basePointer + cl.Function.NumLocals
+
+	return nil
+}
+
+func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
+	args := vm.stack[vm.sp - numArgs : vm.sp]
+
+	result := builtin.Function(args...)
+	vm.sp= vm.sp - numArgs - 1
+
+	if result != nil {
+		vm.push(result)
+	} else {
+		vm.push(NULL)
+	}
 
 	return nil
 }
