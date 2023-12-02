@@ -81,8 +81,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpSetLocal, symbol.Index)
 		}
 	
-	// the return value operation tells the vm that the return
-	// to return from the function with the value on the stack
+	// the return value operation tells the vm that the return value
+	// to return from the function is on top of the stack
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)
 		if err != nil {
@@ -117,6 +117,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 	// are compiled. After the consequence, an unconditional jump is 
 	// added that jumps to the end of the if expression. Then the
 	// alternative is compiled if it exists. The locations of the
+
 	// jumps are added after the consequence and alternatives are
 	// compiled to determine the length of the set of their instructions
 	case *ast.IfExpression:
@@ -137,7 +138,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		
 		jumpPos := c.emit(code.OpJump, 9999)
-
 		afterConsequencePos := len(c.currentInstructions())
 		c.changeOperand(jumpFalsePos, afterConsequencePos)
 
@@ -402,7 +402,7 @@ func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	return pos
 }
 
-// creates a new scope and symbolTable
+// creates a new scope and symbolTable and steps into it
 func (c *Compiler) enterScope() {
 	scope := CompilationScope{
 		instructions: code.Instructions{},
@@ -496,6 +496,6 @@ func (c *Compiler) loadSymbol(s Symbol) {
 	case FreeScope:
 		c.emit(code.OpGetFree, s.Index)
 	case FunctionScope:
-		c.emit(code.OpGetClosure)
+		c.emit(code.OpCurrentClosure)
 	}
 }

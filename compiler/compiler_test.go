@@ -910,7 +910,7 @@ func TestRecursiveFunctions(t *testing.T) {
 			expectedConstants: []interface{}{
 				1,
 				[]code.Instructions{
-					code.Make(code.OpGetClosure),
+					code.Make(code.OpCurrentClosure),
 					code.Make(code.OpGetLocal, 0),
 					code.Make(code.OpConstant, 0),
 					code.Make(code.OpSub),
@@ -939,7 +939,7 @@ func TestRecursiveFunctions(t *testing.T) {
 			expectedConstants: []interface{}{
 				1,
 				[]code.Instructions{
-					code.Make(code.OpGetClosure),
+					code.Make(code.OpCurrentClosure),
 					code.Make(code.OpGetLocal, 0),
 					code.Make(code.OpConstant, 0),
 					code.Make(code.OpSub),

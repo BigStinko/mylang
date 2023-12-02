@@ -259,6 +259,7 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		// gets the free variable from the current frame
 		case code.OpGetFree:
 			freeIndex := uint8(ins[ip + 1])
 			vm.currentFrame().ip += 1
@@ -269,6 +270,8 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		// the operand has the index to the builtin in the list of builtin
+		// objects. Puts the builtin object on the stack 
 		case code.OpGetBuiltin:
 			bultinIndex := uint8(ins[ip + 1])
 			vm.currentFrame().ip += 1
@@ -290,7 +293,7 @@ func (vm *VM) Run() error {
 				return err
 			}
 
-		case code.OpGetClosure:
+		case code.OpCurrentClosure:
 			currentClosure := vm.currentFrame().closure
 			err := vm.push(currentClosure)
 			if err != nil {
@@ -339,6 +342,7 @@ func (vm *VM) push(obj object.Object) error {
 }
 
 // returns the value on top of the stack and decrements the stack pointer
+
 func (vm *VM) pop() object.Object {
 	obj := vm.stack[vm.sp-1]
 	vm.sp--
@@ -362,6 +366,8 @@ func (vm *VM) popFrame() *Frame {
 	return vm.frames[vm.framesIndex]
 }
 
+// gets the function object from the constant pool, takes the free variables
+// off the stack, creates a closure object, and pushes the closure on the stack
 func (vm *VM) pushClosure(constIndex, numFree int) error {
 	constant := vm.constants[constIndex]
 	function, ok := constant.(*object.CompiledFunction)
@@ -369,6 +375,8 @@ func (vm *VM) pushClosure(constIndex, numFree int) error {
 		return fmt.Errorf("not a function: %+v", constant)
 	}
 
+	// order of free variables matter because of how they are referenced with
+	// opGetFree, which has the index of the variable in the list
 	free := make([]object.Object, numFree)
 	for i := 0; i < numFree; i++ {
 		free[i] = vm.stack[vm.sp - numFree + i]
@@ -379,6 +387,8 @@ func (vm *VM) pushClosure(constIndex, numFree int) error {
 	return vm.push(closure)
 }
 
+// gets the function from the stack, which is located under the number
+// of arguments passed to the function
 func (vm *VM) executeCall(numArgs int) error {
 	callee := vm.stack[vm.sp - 1 - numArgs]
 	switch callee := callee.(type) {
@@ -391,13 +401,13 @@ func (vm *VM) executeCall(numArgs int) error {
 	}
 }
 
-// gets the function object from the stack and first checks that the
-// number of arguments given matches the number of parameters to the
-// function. Then creates a new frame for the function with the base
-// pointer being the stack pointer minus the number of arguments to the
-// function. The arguments now sit in the area of the stack given to the
-// function on top of the base pointer. OpGetLocal instructions can now
-// reference these arguments with their offset from the base pointer.(
+// first checks that the number of arguments given matches the number 
+// of parameters to the function. Then creates a new frame for the 
+// function with the base pointer being the stack pointer minus the number
+// of arguments to the function. The arguments now sit in the area of the 
+// stack given to the function on top of the base pointer. OpGetLocal 
+// instructions can now reference these arguments with their offset
+// from the base pointer. 
 func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 	if numArgs != cl.Function.NumParameters {
 		return fmt.Errorf("wrong number of arguments: want=%d, got=%d",
@@ -412,11 +422,13 @@ func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 	return nil
 }
 
+// gets the slice of arguments from the stack and calls the builtin with
+// the arguments. Pushes the result on the stack
 func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
 	args := vm.stack[vm.sp - numArgs : vm.sp]
 
 	result := builtin.Function(args...)
-	vm.sp= vm.sp - numArgs - 1
+	vm.sp = vm.sp - numArgs - 1
 
 	if result != nil {
 		vm.push(result)

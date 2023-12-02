@@ -42,43 +42,43 @@ const (
 	OpGetLocal
 	OpGetFree
 	OpClosure
-	OpGetClosure
+	OpCurrentClosure
 	OpGetBuiltin
 	OpPop
 	OpNull
 )
 
 var definitions = map[Opcode]*Definition{
-	OpConstant:    {"OpConstant",    []int{2}},
-	OpAdd:         {"OpAdd",         []int{}},
-	OpSub:         {"OpSub",         []int{}},
-	OpMul:         {"OpMul",         []int{}},
-	OpDiv:         {"OpDiv",         []int{}},
-	OpEqual:       {"OpEqual",       []int{}},
-	OpNotEqual:    {"OpEqual",       []int{}},
-	OpGreaterThan: {"OpGreaterThan", []int{}},
-	OpMinus:       {"OpMinus",       []int{}},
-	OpNot:         {"OpNot",         []int{}},
-	OpTrue:        {"OpTrue",        []int{}},
-	OpFalse:       {"OpFalse",       []int{}},
-	OpArray:       {"OpArray",       []int{2}},
-	OpHash:        {"OpHash",        []int{2}},
-	OpIndex:       {"OpIndex",       []int{}},
-	OpCall:        {"OpCall",        []int{1}},
-	OpReturn:      {"OpReturn",      []int{}},
-	OpReturnValue: {"OpReturnValue", []int{}},
-	OpJump:        {"OpJump",        []int{2}},
-	OpJumpFalse:   {"OpJumpFalse",   []int{2}},
-	OpSetGlobal:   {"OpSetGlobal",   []int{2}},
-	OpGetGlobal:   {"OpGetGlobal",   []int{2}},
-	OpSetLocal:    {"OpSetLocal",    []int{1}},
-	OpGetLocal:    {"OpGetLocal",    []int{1}},
-	OpGetFree:     {"OpGetFree",     []int{1}},
-	OpGetBuiltin:  {"OpGetBuiltin",  []int{1}},
-	OpClosure:     {"OpClosure",     []int{2, 1}},
-	OpGetClosure:  {"OpGetClosure",  []int{}},
-	OpPop:         {"OpPop",         []int{}},
-	OpNull:        {"OpNull",        []int{}},
+	OpConstant:       {"OpConstant",       []int{2}},
+	OpAdd:            {"OpAdd",            []int{}},
+	OpSub:            {"OpSub",            []int{}},
+	OpMul:            {"OpMul",            []int{}},
+	OpDiv:            {"OpDiv",            []int{}},
+	OpEqual:          {"OpEqual",          []int{}},
+	OpNotEqual:       {"OpEqual",          []int{}},
+	OpGreaterThan:    {"OpGreaterThan",    []int{}},
+	OpMinus:          {"OpMinus",          []int{}},
+	OpNot:            {"OpNot",            []int{}},
+	OpTrue:           {"OpTrue",           []int{}},
+	OpFalse:          {"OpFalse",          []int{}},
+	OpArray:          {"OpArray",          []int{2}},
+	OpHash:           {"OpHash",           []int{2}},
+	OpIndex:          {"OpIndex",          []int{}},
+	OpCall:           {"OpCall",           []int{1}},
+	OpReturn:         {"OpReturn",         []int{}},
+	OpReturnValue:    {"OpReturnValue",    []int{}},
+	OpJump:           {"OpJump",           []int{2}},
+	OpJumpFalse:      {"OpJumpFalse",      []int{2}},
+	OpSetGlobal:      {"OpSetGlobal",      []int{2}},
+	OpGetGlobal:      {"OpGetGlobal",      []int{2}},
+	OpSetLocal:       {"OpSetLocal",       []int{1}},
+	OpGetLocal:       {"OpGetLocal",       []int{1}},
+	OpGetFree:        {"OpGetFree",        []int{1}},
+	OpGetBuiltin:     {"OpGetBuiltin",     []int{1}},
+	OpClosure:        {"OpClosure",        []int{2, 1}},
+	OpCurrentClosure: {"OpCurrentClosure", []int{}},
+	OpPop:            {"OpPop",            []int{}},
+	OpNull:           {"OpNull",           []int{}},
 }
 
 // returns a string representation of the list of instructions

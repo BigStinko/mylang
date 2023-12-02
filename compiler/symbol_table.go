@@ -54,7 +54,11 @@ func (s *SymbolTable) Define(name string) Symbol {
 	return symbol
 }
 
-// checks all scopes for the given symbol
+// checks all scopes for the given symbol. If the symbol is not in the
+// current scope, checks the outer scopes recursively. If the object
+// exists in an outer scope, if it is a global or a builtin returns it.
+// In the case of a local scope symbol from an outer symboltable, defines
+// it as a free variable for the current symbol table 
 func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
 	if !ok && s.Outer != nil {
@@ -73,6 +77,7 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	return obj, ok
 }
 
+// assigns a symbol to a builtin 
 func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol {
 	symbol := Symbol{
 		Name: name,
