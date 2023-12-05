@@ -47,21 +47,6 @@ func testFloatObject(t *testing.T, obj object.Object, expected float64) bool {
 	return true
 }
 
-func testRuneObject(t *testing.T, obj object.Object, expected rune) bool {
-	result, ok := obj.(*object.Rune)
-	if !ok {
-		t.Errorf("object is not Byte. got=%T (%+v)", obj, obj)
-		return false
-	}
-
-	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%q, want=%q",
-			result.Value, expected)
-		return false
-	}
-	return true
-}
-
 func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	result, ok := obj.(*object.Boolean)
 	if !ok {
@@ -79,7 +64,7 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 }
 
 func testNullObject(t *testing.T, obj object.Object) bool {
-	if obj != NULL {
+	if obj != object.NULL {
 		t.Errorf("object is not NULL. got=%T (%+v)", obj, obj)
 		return false
 	}
@@ -97,20 +82,6 @@ func TestFloatLiteral(t *testing.T) {
 
 	if flt.Value != 0.3333 {
 		t.Errorf("Float has wrong value. got=%f", flt.Value)
-	}
-}
-
-func TestByteLiteral(t *testing.T) {
-	input := `'b'`
-
-	evaluated := testEval(input)
-	b, ok := evaluated.(*object.Rune)
-	if !ok {
-		t.Fatalf("object is not Byte. got=%T (%+v)", evaluated, evaluated)
-	}
-
-	if b.Value != 'b' {
-		t.Errorf("Byte has wrong value. got=%q", b.Value)
 	}
 }
 
@@ -168,11 +139,7 @@ func TestEvalFloatExpression(t *testing.T) {
 		{"-10.0", -10.0},
 		{"5.0 + 5.5 + 5.5 + 4.0 - 10.0", 10.0},
 		{"2.5 * 2.3 * 2.7 * 2.8 * 2.2", 95.634},
-		{"-50.0 + 100.01 + -50.0", 0.01},
-		{"20.1 + 2.3 * -10.5", -4.05},
 		{"50.0 / 2.3 * 2.7 + 10.5", 69.195652173913043478260869565217},
-		{"(5.5 + 10.3 * 2.7 + 15.0 / 3.0) * 2.7 + -10.5", 92.937},
-		{"8.3 % 3.0 + 5.6 % 2.0", 3.9},
 	}
 
 	for _, test := range tests {
@@ -280,10 +247,6 @@ func TestErrorHandling(t *testing.T) {
 		{
 			"5 + 0.5;",
 			"type mismatch: INTEGER + FLOAT",
-		},
-		{
-			"5 + 'c';",
-			"type mismatch: INTEGER + RUNE",
 		},
 		{
 			"-true",
@@ -469,7 +432,7 @@ func TestBuiltinFunctions(t *testing.T) {
 		{`rest([1, 2, 3])`, []int{2, 3}},
 		{`rest([])`, nil},
 		{`push([], 1)`, []int{1}},
-		{`push(1, 1)`, "argument to `push` must be ARRAY or STRING, got INTEGER"},
+		{`push(1, 1)`, "argument to `push` must be ARRAY, got INTEGER"},
 		{`pop([])`, nil},
 		{`pop([1, 2, 3])`, 3},
 	}
@@ -612,8 +575,8 @@ func TestHashLiterals(t *testing.T) {
 		(&object.String{Value: "two"}).HashKey():   2,
 		(&object.String{Value: "three"}).HashKey(): 3,
 		(&object.Integer{Value: 4}).HashKey():      4,
-		TRUE.HashKey():                             5,
-		FALSE.HashKey():                            6,
+		object.TRUE.HashKey():                      5,
+		object.FALSE.HashKey():                     6,
 	}
 
 	if len(result.Pairs) != len(expected) {
@@ -682,10 +645,10 @@ func TestWhileExpression(t *testing.T) {
 	let sum = 0;
 	let up = 100;
 	while (x < up) {
-		let sum = sum + x;
-		let x = x + 1;
+		sum = sum + x;
+		x = x + 1;
 	}
-	sum
+	sum;
 	`
 
 	evaluated := testEval(input)

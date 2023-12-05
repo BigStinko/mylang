@@ -28,3 +28,17 @@ func (e *Environment) Set(name string, value Object) Object {
 	e.store[name] = value
 	return value
 }
+
+func (e *Environment) Assign(name string, value Object) bool {
+	_, ok := e.store[name]
+
+	if ok {
+		e.store[name] = value
+	}
+
+	if !ok && e.outer != nil {
+		ok = e.outer.Assign(name, value)
+	}
+
+	return ok
+}

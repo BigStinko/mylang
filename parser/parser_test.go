@@ -153,25 +153,6 @@ func TestStringLiteralExpression(t *testing.T) {
 	}
 }
 
-func TestByteLiteralExpression(t *testing.T) {
-	var input string = `'a';`
-
-	l := lexer.New(input)
-	var p *Parser = New(l)
-	var program *ast.Program = p.ParseProgram()
-	checkParserErrors(t, p)
-
-	statement := program.Statements[0].(*ast.ExpressionStatement)
-	literal, ok := statement.Expression.(*ast.RuneLiteral)
-	if !ok {
-		t.Fatalf("exp not *ast.RuneLiteral. got=%T", statement.Expression)
-	}
-
-	if literal.Value != 'a' {
-		t.Errorf("literal.Value not %q. got=%q", 'a', literal.Value)
-	}
-}
-
 func TestFloatLiteralExpression(t *testing.T) {
 	var input string = `0.3333;`
 

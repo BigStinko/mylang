@@ -564,6 +564,53 @@ func TestConditionals(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestWhileExpression(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input: `
+			let i = 0;
+			while (i < 10) { i = i + 1; };
+			i;`,
+			expectedConstants: []interface{}{0, 10, 1},
+			expectedInstructions: []code.Instructions{
+				// 0000
+				code.Make(code.OpConstant, 0),
+				// 0003
+				code.Make(code.OpSetGlobal, 0),
+				// 0006
+				code.Make(code.OpConstant, 1),
+				// 0009
+				code.Make(code.OpGetGlobal, 0),
+				// 0012
+				code.Make(code.OpGreaterThan),
+				// 0013
+				code.Make(code.OpJumpFalse, 29),
+				// 0016
+				code.Make(code.OpGetGlobal, 0),
+				// 0019
+				code.Make(code.OpConstant, 2),
+				// 0022
+				code.Make(code.OpAdd),
+				// 0023
+				code.Make(code.OpSetGlobal, 0),
+				// 0026
+				code.Make(code.OpJump, 6),
+				// 0029
+				code.Make(code.OpNull),
+				// 0030
+				code.Make(code.OpPop),
+				// 0031
+				code.Make(code.OpGetGlobal, 0),
+				// 0034
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	
+	runCompilerTests(t, tests)
+
+}
+
 func TestFunctions(t *testing.T) {
 	tests := []compilerTestCase{
 		{

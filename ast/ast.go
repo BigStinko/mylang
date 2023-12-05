@@ -86,6 +86,24 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
+
+type AssignmentStatement struct {
+	Token token.Token
+	Name *Identifier
+	Operator string
+	Value Expression
+}
+
+func (as *AssignmentStatement) statementNode() {}
+func (as *AssignmentStatement) TokenLiteral() string { return as.Token.Literal }
+func (as *AssignmentStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(as.Name.String())
+	out.WriteString(as.Operator)
+	out.WriteString(as.Value.String())
+	return out.String()
+}
+
 // return statements have the return token and a return value expression
 type ReturnStatement struct {
 	Token token.Token
@@ -170,16 +188,6 @@ type BooleanLiteral struct {
 func (bl *BooleanLiteral) expressionNode() {}
 func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
 func (bl *BooleanLiteral) String() string { return bl.Token.Literal }
-
-
-type RuneLiteral struct {
-	Token token.Token
-	Value rune
-}
-
-func (rl *RuneLiteral) expressionNode() {}
-func (rl *RuneLiteral) TokenLiteral() string { return rl.Token.Literal }
-func (rl *RuneLiteral) String() string { return rl.Token.Literal }
 
 
 type StringLiteral struct {

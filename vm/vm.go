@@ -14,12 +14,6 @@ const (
 	MAXFRAMES = 1024
 )
 
-var (
-	TRUE = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
-	NULL = &object.Null{}
-)
-
 type VM struct {
 	constants []object.Object
 
@@ -40,6 +34,12 @@ func New(bytecode *compiler.Bytecode) *VM {
 
 	frames := make([]*Frame, MAXFRAMES)
 	frames[0] = mainFrame
+
+	elements := []string{}
+	for _, element := range bytecode.Constants {
+		elements = append(elements, element.Inspect())
+	}
+	fmt.Printf("%s\n", fmt.Sprint(elements))
 
 	return &VM{
 		constants: bytecode.Constants,
@@ -65,6 +65,10 @@ func (vm *VM) Run() error {
 		ip = vm.currentFrame().ip
 		ins = vm.currentFrame().Instructions()
 		op = code.Opcode(ins[ip])
+
+		def, _ := code.Lookup(byte(op))
+		operands, _ := code.ReadOperands(def, ins)
+		fmt.Printf("%d: %04d %s\n", vm.framesIndex, ip, ins.FmtInstruction(def, operands))
 
 		switch op {
 		// when the compiler encounters a literal it replaces it with an
@@ -104,13 +108,13 @@ func (vm *VM) Run() error {
 			}
 		
 		case code.OpTrue:
-			err := vm.push(TRUE)
+			err := vm.push(object.TRUE)
 			if err != nil {
 				return err
 			}
 		
 		case code.OpFalse:
-			err := vm.push(FALSE)
+			err := vm.push(object.FALSE)
 			if err != nil {
 				return err
 			}
@@ -176,7 +180,7 @@ func (vm *VM) Run() error {
 			frame := vm.popFrame()
 			vm.sp = frame.basePointer - 1
 
-			err := vm.push(NULL)
+			err := vm.push(object.NULL)
 			if err != nil {
 				return err
 			}
@@ -259,6 +263,12 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpSetFree:
+			freeIndex := uint8(ins[ip + 1])
+			vm.currentFrame().ip += 1
+
+			vm.currentFrame().closure.Free[freeIndex] = vm.pop()
+
 		// gets the free variable from the current frame
 		case code.OpGetFree:
 			freeIndex := uint8(ins[ip + 1])
@@ -305,7 +315,7 @@ func (vm *VM) Run() error {
 		
 		// puts null on top of the stack
 		case code.OpNull:
-			err := vm.push(NULL)
+			err := vm.push(object.NULL)
 			if err != nil {
 				return err
 			}
@@ -429,12 +439,7 @@ func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
 
 	result := builtin.Function(args...)
 	vm.sp = vm.sp - numArgs - 1
-
-	if result != nil {
-		vm.push(result)
-	} else {
-		vm.push(NULL)
-	}
+	vm.push(result)
 
 	return nil
 }
@@ -523,7 +528,7 @@ func (vm *VM) executeArrayIndex(array, index object.Object) error {
 	maximum := int64(len(arrayObject.Elements) - 1)
 
 	if i < 0 || i > maximum {
-		return vm.push(NULL)
+		return vm.push(object.NULL)
 	}
 
 	return vm.push(arrayObject.Elements[i])
@@ -539,7 +544,7 @@ func (vm *VM) executeHashIndex(hash, index object.Object) error {
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return vm.push(NULL)
+		return vm.push(object.NULL)
 	}
 
 	return vm.push(pair.Value)
@@ -579,14 +584,14 @@ func (vm *VM) executeNotOperator() error {
 	operand := vm.pop()
 
 	switch operand {
-	case TRUE:
-		return vm.push(FALSE)
-	case FALSE:
-		return vm.push(TRUE)
-	case NULL:
-		return vm.push(TRUE)
+	case object.TRUE:
+		return vm.push(object.FALSE)
+	case object.FALSE:
+		return vm.push(object.TRUE)
+	case object.NULL:
+		return vm.push(object.TRUE)
 	default:
-		return vm.push(FALSE)
+		return vm.push(object.FALSE)
 	}
 }
 
@@ -613,7 +618,7 @@ func isTruthy(obj object.Object) bool {
 
 func getBoolObject(value bool) *object.Boolean {
 	if value {
-		return TRUE
+		return object.TRUE
 	}
-	return FALSE
+	return object.FALSE
 }

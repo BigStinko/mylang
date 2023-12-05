@@ -133,8 +133,8 @@ func TestConditionals(t *testing.T) {
 		{"if (1 < 2) { 10 }", 10},
 		{"if (1 < 2) { 10 } else { 20 }", 10},
 		{"if (1 > 2) { 10 } else { 20 }", 20},
-		{"if (1 > 2) { 10 }", NULL},
-		{"if (false) { 10 }", NULL},
+		{"if (1 > 2) { 10 }", object.NULL},
+		{"if (false) { 10 }", object.NULL},
 		{"if ((if (false) { 10 })) { 10 } else { 20 }", 20},
 	}
 
@@ -146,13 +146,13 @@ func TestIndexExpressions(t *testing.T) {
 		{"[1, 2, 3][1]", 2},
 		{"[1, 2, 3][0 + 2]", 3},
 		{"[[1, 1, 1]][0][0]", 1},
-		{"[][0]", NULL},
-		{"[1, 2, 3][99]", NULL},
-		{"[1][-1]", NULL},
+		{"[][0]", object.NULL},
+		{"[1, 2, 3][99]", object.NULL},
+		{"[1][-1]", object.NULL},
 		{"{1: 1, 2: 2}[1]", 1},
 		{"{1: 1, 2: 2}[2]", 2},
-		{"{1: 1}[0]", NULL},
-		{"{}[0]", NULL},
+		{"{1: 1}[0]", object.NULL},
+		{"{}[0]", object.NULL},
 	}
 
 	runVmTests(t, tests)
@@ -217,7 +217,7 @@ func TestFunctionsWithoutReturnValue(t *testing.T) {
 		let noReturn = func() { };
 		noReturn();
 		`,
-			expected: NULL,
+			expected: object.NULL,
 		},
 		{
 			input: `
@@ -226,7 +226,7 @@ func TestFunctionsWithoutReturnValue(t *testing.T) {
 		noReturn();
 		noReturnTwo();
 		`,
-			expected: NULL,
+			expected: object.NULL,
 		},
 	}
 
@@ -435,23 +435,23 @@ func TestBuiltinFunctions(t *testing.T) {
 		},
 		{`len([1, 2, 3])`, 3},
 		{`len([])`, 0},
-		{`puts("hello", "world!")`, NULL},
+		{`puts("hello", "world!")`, object.NULL},
 		{`first([1, 2, 3])`, 1},
-		{`first([])`, NULL},
+		{`first([])`, object.NULL},
 		{`first(1)`,
 			&object.Error{
 				Message: "argument to `first` must be ARRAY, got INTEGER",
 			},
 		},
 		{`last([1, 2, 3])`, 3},
-		{`last([])`, NULL},
+		{`last([])`, object.NULL},
 		{`last(1)`,
 			&object.Error{
 				Message: "argument to `last` must be ARRAY, got INTEGER",
 			},
 		},
 		{`rest([1, 2, 3])`, []int{2, 3}},
-		{`rest([])`, NULL},
+		{`rest([])`, object.NULL},
 		{`push([], 1)`, []int{1}},
 		{`push(1, 1)`,
 			&object.Error{
@@ -691,7 +691,7 @@ func testExpectedObject(
 			}
 		}
 	case *object.Null:
-		if actual != NULL {
+		if actual != object.NULL {
 			t.Errorf("object is not Null: %T (%+v)", actual, actual)
 		}
 	case *object.Error:
@@ -711,8 +711,8 @@ func testExpectedObject(
 func testIntegerObject(expected int64, actual object.Object) error {
 	result, ok := actual.(*object.Integer)
 	if !ok {
-		return fmt.Errorf("object is not Integer. got=%T (%+v)",
-			actual, actual)
+		return fmt.Errorf("object is not Integer %d. got=%T (%+v)",
+			expected, actual, actual)
 	}
 
 	if result.Value != expected {

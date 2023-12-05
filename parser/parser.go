@@ -44,18 +44,18 @@ const (
 
 // precedences for operators
 var precedences = map[token.TokenType]int{
-	token.OR: OR,
-	token.AND: AND,
-	token.EQ: EQUALS,
-	token.NOT_EQ: EQUALS,
-	token.LT: LESSGREATER,
-	token.GT: LESSGREATER,
-	token.PLUS: SUM,
-	token.MINUS: SUM,
-	token.SLASH: PRODUCT,
+	token.OR:       OR,
+	token.AND:      AND,
+	token.EQ:       EQUALS,
+	token.NOT_EQ:   EQUALS,
+	token.LT:       LESSGREATER,
+	token.GT:       LESSGREATER,
+	token.PLUS:     SUM,
+	token.MINUS:    SUM,
+	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
-	token.MODULO: PRODUCT,
-	token.OPAREN: CALL,
+	token.MODULO:   PRODUCT,
+	token.OPAREN:   CALL,
 	token.OBRACKET: INDEX,
 }
 
@@ -67,36 +67,35 @@ func New(l *lexer.Lexer) *Parser {
 	}
 
 	p.prefixParseFunctions = make(map[token.TokenType]prefixParseFunction)
-	p.prefixParseFunctions[token.IDENT] = p.parseIdentifier
-	p.prefixParseFunctions[token.INT] = p.parseIntegerLiteral
-	p.prefixParseFunctions[token.FLOAT] = p.parseFloatLiteral
-	p.prefixParseFunctions[token.BYTE] = p.parseRuneLiteral
-	p.prefixParseFunctions[token.STRING] = p.parseStringLiteral
-	p.prefixParseFunctions[token.TRUE] = p.parseBooleanLiteral
-	p.prefixParseFunctions[token.FALSE] = p.parseBooleanLiteral
-	p.prefixParseFunctions[token.BANG] = p.parsePrefixExpression
-	p.prefixParseFunctions[token.MINUS] = p.parsePrefixExpression
-	p.prefixParseFunctions[token.OPAREN] = p.parseGroupedExpression
-	p.prefixParseFunctions[token.IF] = p.parseIfExpression
-	p.prefixParseFunctions[token.WHILE] = p.parseWhileExpression
-	p.prefixParseFunctions[token.SWITCH] = p.parseSwitchExpression
+	p.prefixParseFunctions[token.IDENT]    = p.parseIdentifier
+	p.prefixParseFunctions[token.INT]      = p.parseIntegerLiteral
+	p.prefixParseFunctions[token.FLOAT]    = p.parseFloatLiteral
+	p.prefixParseFunctions[token.STRING]   = p.parseStringLiteral
+	p.prefixParseFunctions[token.TRUE]     = p.parseBooleanLiteral
+	p.prefixParseFunctions[token.FALSE]    = p.parseBooleanLiteral
+	p.prefixParseFunctions[token.BANG]     = p.parsePrefixExpression
+	p.prefixParseFunctions[token.MINUS]    = p.parsePrefixExpression
+	p.prefixParseFunctions[token.OPAREN]   = p.parseGroupedExpression
+	p.prefixParseFunctions[token.IF]       = p.parseIfExpression
+	p.prefixParseFunctions[token.WHILE]    = p.parseWhileExpression
+	p.prefixParseFunctions[token.SWITCH]   = p.parseSwitchExpression
 	p.prefixParseFunctions[token.FUNCTION] = p.parseFunctionLiteral
 	p.prefixParseFunctions[token.OBRACKET] = p.parseArrayLiteral
-	p.prefixParseFunctions[token.OBRACE] = p.parseHashLiteral
+	p.prefixParseFunctions[token.OBRACE]   = p.parseHashLiteral
 
 	p.infixParseFunctions = make(map[token.TokenType]infixParseFunction)
-	p.infixParseFunctions[token.PLUS] = p.parseInfixExpression
-	p.infixParseFunctions[token.MINUS] = p.parseInfixExpression
-	p.infixParseFunctions[token.SLASH] = p.parseInfixExpression
+	p.infixParseFunctions[token.PLUS]     = p.parseInfixExpression
+	p.infixParseFunctions[token.MINUS]    = p.parseInfixExpression
+	p.infixParseFunctions[token.SLASH]    = p.parseInfixExpression
 	p.infixParseFunctions[token.ASTERISK] = p.parseInfixExpression
-	p.infixParseFunctions[token.MODULO] = p.parseInfixExpression
-	p.infixParseFunctions[token.EQ] = p.parseInfixExpression
-	p.infixParseFunctions[token.NOT_EQ] = p.parseInfixExpression
-	p.infixParseFunctions[token.LT] = p.parseInfixExpression
-	p.infixParseFunctions[token.GT] = p.parseInfixExpression
-	p.infixParseFunctions[token.AND] = p.parseInfixExpression
-	p.infixParseFunctions[token.OR] = p.parseInfixExpression
-	p.infixParseFunctions[token.OPAREN] = p.parseCallExpression
+	p.infixParseFunctions[token.MODULO]   = p.parseInfixExpression
+	p.infixParseFunctions[token.EQ]       = p.parseInfixExpression
+	p.infixParseFunctions[token.NOT_EQ]   = p.parseInfixExpression
+	p.infixParseFunctions[token.LT]       = p.parseInfixExpression
+	p.infixParseFunctions[token.GT]       = p.parseInfixExpression
+	p.infixParseFunctions[token.AND]      = p.parseInfixExpression
+	p.infixParseFunctions[token.OR]       = p.parseInfixExpression
+	p.infixParseFunctions[token.OPAREN]   = p.parseCallExpression
 	p.infixParseFunctions[token.OBRACKET] = p.parseIndexExpression
 
 	p.advanceTokens()
@@ -137,6 +136,11 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.IDENT:
+		if p.nextToken.Type == token.ASSIGN {
+			return p.parseAssignmentStatement()
+		}
+		return p.parseExpressionStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -144,7 +148,7 @@ func (p *Parser) parseStatement() ast.Statement {
 
 // used by the parseStatement method to parse a let statement in the program
 // generates a LetStatement Node and gets the identifier and expression fields
-// from the program and ends at the semicolon
+// from the program and optionaly ends at the semicolon
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	statement := &ast.LetStatement{Token: p.currentToken}
 
@@ -192,6 +196,30 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	return statement
 }
 
+func (p *Parser) parseAssignmentStatement() *ast.AssignmentStatement {
+	statement := &ast.AssignmentStatement{Token: p.currentToken}
+	
+	statement.Name = &ast.Identifier{
+		Token: p.currentToken,
+		Value: p.currentToken.Literal,
+	}
+
+	p.advanceTokens()
+	p.advanceTokens()
+
+	statement.Value = p.parseExpression(LOWEST)
+
+	if fl, ok := statement.Value.(*ast.FunctionLiteral); ok {
+		fl.Name = statement.Name.Value
+	}
+
+	if p.nextToken.Type == token.SCOLON {
+		p.advanceTokens()
+	}
+
+	return statement
+}
+
 // generates the ExpressionStatement Node for the following expression in the
 // program
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
@@ -219,8 +247,8 @@ func (p *Parser) expectedToken(t token.TokenType) bool {
 }
 
 func (p *Parser) expectedTokenError(t token.TokenType) {
-	var msg string = fmt.Sprintf("expected next token to be %s, got %s instead",
-		t, p.nextToken.Type)
+	var msg string = fmt.Sprintf("expected next token to be %s, got %s instead, at line %d",
+		t, p.nextToken.Type, p.l.GetLine())
 	p.errors = append(p.errors, msg)
 }
 
@@ -261,7 +289,8 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) noPrefixParseFunctionError(t token.TokenType) {
-	var msg string = fmt.Sprintf("no prefix parse function for %s found", t)
+	var msg string = fmt.Sprintf("no prefix parse function for %s found, at line %d",
+		t, p.l.GetLine())
 	p.errors = append(p.errors, msg)
 }
 
@@ -286,7 +315,8 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 
 	value, err := strconv.ParseInt(p.currentToken.Literal, 0, 64)
 	if err != nil {
-		var msg string = fmt.Sprintf("could not parse %q as integer", p.currentToken.Literal)
+		var msg string = fmt.Sprintf("could not parse %q as integer, at line %d",
+			p.currentToken.Literal, p.l.GetLine())
 		p.errors = append(p.errors, msg)
 		return nil
 	}
@@ -301,7 +331,8 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 
 	value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
 	if err != nil {
-		var msg string = fmt.Sprintf("could not parse %q as float", p.currentToken.Literal)
+		var msg string = fmt.Sprintf("could not parse %q as float, at line %d",
+			p.currentToken.Literal, p.l.GetLine())
 		p.errors = append(p.errors, msg)
 		return nil
 	}
@@ -317,17 +348,6 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 		Token: p.currentToken,
 		Value: p.currentToken.Type == token.TRUE,
 	} 
-}
-
-func (p *Parser) parseRuneLiteral() ast.Expression {
-	value := []rune(p.currentToken.Literal)
-
-	return &ast.RuneLiteral{
-		Token: p.currentToken,
-		Value: value[0],
-	}
-
-	
 }
 
 func (p *Parser) parseStringLiteral() ast.Expression {
@@ -523,7 +543,7 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 
 	for p.currentToken.Type != token.CBRACE {
 		if p.currentToken.Type == token.EOF {
-			p.errors = append(p.errors, "switch statement missing CBRACE")
+			p.expectedTokenError(token.CBRACE)
 			return nil
 		}
 		
@@ -537,24 +557,20 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 			caseExpr.Value = p.parseExpression(LOWEST)
 		default:
 			p.errors = append(p.errors,
-				fmt.Sprintf("expected case or default, got %s",
-					p.currentToken.Type))
+				fmt.Sprintf("expected case or default, at line %d, got %s",
+					p.l.GetLine(), p.currentToken.Type))
 			return nil
 		}
 
 		if !p.expectedToken(token.OBRACE) {
-			var msg string = fmt.Sprintf("expected token to be '{', got %s instead",
-				p.currentToken.Type)
-			p.errors = append(p.errors, msg)
+			p.expectedTokenError(token.OBRACE)
 			return  nil
 		}
 
 		caseExpr.Body = p.parseBlockStatement()
 
 		if p.currentToken.Type != token.CBRACE {
-			var msg string = fmt.Sprintf("expected token to be '}', got %s instead",
-				p.currentToken.Type)
-			p.errors = append(p.errors, msg)
+			p.expectedTokenError(token.CBRACE)
 			return nil
 		}
 		p.advanceTokens()

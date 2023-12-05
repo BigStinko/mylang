@@ -20,7 +20,6 @@ const (
 	INTEGER_OBJ = "INTEGER"
 	FLOAT_OBJ = "FLOAT"
 	BOOLEAN_OBJ = "BOOLEAN"
-	RUNE_OBJ = "RUNE"
 	STRING_OBJ = "STRING"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	FUNCTION_OBJ = "FUNCTION"
@@ -72,14 +71,6 @@ type Boolean struct {
 
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string { return fmt.Sprintf("%t", b.Value) }
-
-
-type Rune struct {
-	Value rune
-}
-
-func (r *Rune) Type() ObjectType { return RUNE_OBJ }
-func (r *Rune) Inspect() string { return string(r.Value) }
 
 
 type String struct {
@@ -150,6 +141,13 @@ func (b *Boolean) HashKey() HashKey {
 
 func (i *Integer) HashKey() HashKey {
 	return HashKey{Type: i.Type(), Value: uint64(i.Value)}
+}
+
+func (f *Float) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(f.Inspect()))
+	
+	return HashKey{Type: f.Type(), Value: h.Sum64()}
 }
 
 func (s *String) HashKey() HashKey {

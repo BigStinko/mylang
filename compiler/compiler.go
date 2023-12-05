@@ -71,6 +71,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 	// stack is to be associated with the given symbol index
 	case *ast.LetStatement:
 		symbol := c.symbolTable.Define(node.Name.Value)
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
@@ -79,6 +80,27 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpSetGlobal, symbol.Index)
 		} else {
 			c.emit(code.OpSetLocal, symbol.Index)
+		}
+	
+	case *ast.AssignmentStatement:
+		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Name.Value)
+		}
+
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+		switch symbol.Scope {
+		case GlobalScope:
+			c.emit(code.OpSetGlobal, symbol.Index)
+		case LocalScope:
+			c.emit(code.OpSetLocal, symbol.Index)
+		case FreeScope:
+			c.emit(code.OpSetFree, symbol.Index)
+		default:
+			return fmt.Errorf("cannot redefine functions")
 		}
 	
 	// the return value operation tells the vm that the return value
@@ -117,7 +139,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 	// are compiled. After the consequence, an unconditional jump is 
 	// added that jumps to the end of the if expression. Then the
 	// alternative is compiled if it exists. The locations of the
-
 	// jumps are added after the consequence and alternatives are
 	// compiled to determine the length of the set of their instructions
 	case *ast.IfExpression:
@@ -129,6 +150,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		jumpFalsePos := c.emit(code.OpJumpFalse, 9999)
 
 		err = c.Compile(node.Consequence)
+
 		if err != nil {
 			return err
 		}
@@ -153,9 +175,90 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
+
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterAlternativePos)
+
+	case *ast.WhileExpression:
+		jumpPos := len(c.currentInstructions())
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+		
+		jumpFalsePos := c.emit(code.OpJumpFalse, 9999)
+
+		err = c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+		
+		c.emit(code.OpJump, jumpPos)
+		c.changeOperand(jumpFalsePos, len(c.currentInstructions()))
+		c.emit(code.OpNull)
 	
+	case *ast.SwitchExpression:
+
+		jumpPositions := []int{}
+
+		for _, choice := range node.Cases {
+			if choice.Default {
+				continue
+			}
+
+			err := c.Compile(node.Value)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(choice.Value)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpEqual)
+
+			jumpFalsePos := c.emit(code.OpJumpFalse, 9999)
+
+			err = c.Compile(choice.Body)
+			if err != nil {
+				return err
+			}
+
+			if c.lastInstructionIs(code.OpPop) {
+				c.removePop()
+			}
+
+			jumpPositions = append(jumpPositions, c.emit(code.OpJump, 9999))
+			c.changeOperand(jumpFalsePos, len(c.currentInstructions()))
+		}
+
+		var defaultFound bool = false
+
+		for _, choice := range node.Cases {
+			if choice.Default {
+				defaultFound = true
+				err := c.Compile(choice.Body)
+				if err != nil {
+					return err
+				}
+				
+				if c.lastInstructionIs(code.OpPop) {
+					c.removePop()
+				}
+			}
+		}
+
+		if !defaultFound {
+			c.emit(code.OpNull)
+		}
+
+		var endPos int = len(c.currentInstructions())
+
+		for _, pos := range jumpPositions {
+			c.changeOperand(pos, endPos)
+		}
+
 	// compiles both sides of the infix expression. The infix operations
 	// take the top two values of the stack for their operation, and puts
 	// the result on top of the stack
@@ -255,6 +358,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+	
+	// puts the float literal on to the stack
+	case *ast.FloatLiteral:
+		flt := &object.Float{Value: node.Value}
+		c.emit(code.OpConstant, c.addConstant(flt))
 	
 	// puts the boolean object on the stack
 	case *ast.BooleanLiteral:
@@ -432,10 +540,7 @@ func (c *Compiler) leaveScope() code.Instructions {
 // in the scope.
 func (c *Compiler) addInstruction(ins []byte) int {
 	newInstructionPos := len(c.currentInstructions())
-	updatedInstructions := append(c.currentInstructions(), ins...)
-
-	c.scopes[c.scopeIndex].instructions = updatedInstructions
-
+	c.scopes[c.scopeIndex].instructions = append(c.currentInstructions(), ins...)
 	return newInstructionPos
 }
 

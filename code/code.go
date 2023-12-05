@@ -40,6 +40,7 @@ const (
 	OpGetGlobal
 	OpSetLocal
 	OpGetLocal
+	OpSetFree
 	OpGetFree
 	OpClosure
 	OpCurrentClosure
@@ -73,6 +74,7 @@ var definitions = map[Opcode]*Definition{
 	OpGetGlobal:      {"OpGetGlobal",      []int{2}},
 	OpSetLocal:       {"OpSetLocal",       []int{1}},
 	OpGetLocal:       {"OpGetLocal",       []int{1}},
+	OpSetFree:        {"OpSetFree",        []int{1}},
 	OpGetFree:        {"OpGetFree",        []int{1}},
 	OpGetBuiltin:     {"OpGetBuiltin",     []int{1}},
 	OpClosure:        {"OpClosure",        []int{2, 1}},
@@ -94,7 +96,7 @@ func (ins Instructions) String() string {
 
 		operands, read := ReadOperands(def, ins[i+1:])
 
-		fmt.Fprintf(&out, "%04d %s\n", i, ins.fmtInstruction(def, operands))
+		fmt.Fprintf(&out, "%04d %s\n", i, ins.FmtInstruction(def, operands))
 
 		i += 1 + read
 	}
@@ -103,7 +105,7 @@ func (ins Instructions) String() string {
 }
 
 // returns a string representation of the instruction
-func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
+func (ins Instructions) FmtInstruction(def *Definition, operands []int) string {
 	operandCount := len(def.OperandWidths)
 
 	if len(operands) != operandCount {

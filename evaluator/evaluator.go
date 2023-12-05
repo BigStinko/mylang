@@ -8,11 +8,27 @@ import (
 	"mylang/token"
 )
 
-var (
-	NULL = &object.Null{}
-	TRUE = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
-)
+var builtins = map[string]*object.Builtin{
+	"len": object.GetBuiltinByName("len"),
+	"puts": object.GetBuiltinByName("puts"),
+	"first": object.GetBuiltinByName("first"),
+	"last": object.GetBuiltinByName("last"),
+	"rest": object.GetBuiltinByName("rest"),
+	"push": object.GetBuiltinByName("push"),
+	"pop": object.GetBuiltinByName("pop"),
+	"string": object.GetBuiltinByName("string"),
+	"keys": object.GetBuiltinByName("keys"),
+	"delete": object.GetBuiltinByName("delete"),
+	"assign": object.GetBuiltinByName("assign"),
+	"type": object.GetBuiltinByName("type"),
+	"command": object.GetBuiltinByName("command"),
+	"open": object.GetBuiltinByName("open"),
+	"close": object.GetBuiltinByName("close"),
+	"read": object.GetBuiltinByName("read"),
+	"write": object.GetBuiltinByName("write"),
+	"remove": object.GetBuiltinByName("remove"),
+	"args": object.GetBuiltinByName("args"),
+}
 
 // recursively evaluates every kind of node in the ast
 func Evaluate(node ast.Node, env *object.Environment) object.Object {
@@ -39,6 +55,17 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 			return value
 		}
 		env.Set(node.Name.Value, value)
+	
+	case *ast.AssignmentStatement:
+		value := Evaluate(node.Value, env)
+		if isError(value) {
+			return value
+		}
+
+		if !env.Assign(node.Name.Value, value) {
+			return newError("undefined identifier '%s'", node.Name.Value)
+		}
+
 		return value
 	
 	case *ast.ExpressionStatement:
@@ -71,9 +98,6 @@ func Evaluate(node ast.Node, env *object.Environment) object.Object {
 	
 	case *ast.FloatLiteral:
 		return &object.Float{Value: node.Value}
-
-	case *ast.RuneLiteral:
-		return &object.Rune{Value: node.Value}
 
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
@@ -198,14 +222,14 @@ func isError(obj object.Object) bool {
 // is not NULL then returns true
 func evaluateBangOperator(right object.Object) object.Object {
 	switch right {
-	case TRUE:
-		return FALSE
-	case FALSE:
-		return TRUE
-	case NULL:
-		return TRUE
+	case object.TRUE:
+		return object.FALSE
+	case object.FALSE:
+		return object.TRUE
+	case object.NULL:
+		return object.TRUE
 	default:
-		return FALSE
+		return object.FALSE
 	}
 }
 
@@ -213,11 +237,11 @@ func evaluateBangOperator(right object.Object) object.Object {
 // object has a value that is not NULL or FALSE, it returns true
 func isTruthy(obj object.Object) bool {
 	switch obj {
-	case NULL:
+	case object.NULL:
 		return false
-	case TRUE:
+	case object.TRUE:
 		return true
-	case FALSE:
+	case object.FALSE:
 		return false
 	default:
 		return true
@@ -262,9 +286,9 @@ func evaluatePrefixOperator(
 // returns the universal bool objects from the input boolean
 func getBoolObject(input bool) *object.Boolean {
 	if input {
-		return TRUE
+		return object.TRUE
 	}
-	return FALSE
+	return object.FALSE
 }
 
 // evaluates all the binary operators for integers.
@@ -333,28 +357,6 @@ func evaluateFloatInfixOperator(
 	}
 }
 
-func evaluateByteInfixOperator(
-	operator token.Token,
-	left, right object.Object,
-) object.Object {
-	leftValue := left.(*object.Rune).Value
-	rightValue := right.(*object.Rune).Value
-
-	switch operator.Type {
-	case token.LT:
-		return getBoolObject(leftValue < rightValue)
-	case token.GT:
-		return getBoolObject(leftValue > rightValue)
-	case token.EQ:
-		return getBoolObject(leftValue == rightValue)
-	case token.NOT_EQ:
-		return getBoolObject(leftValue != rightValue)
-	default:
-		return newError("unknown operator: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
-	}
-}
-
 func evaluateStringInfixOperator(
 	operator token.Token,
 	left, right object.Object,
@@ -390,9 +392,6 @@ func evaluateInfixOperator(
 	
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return evaluateStringInfixOperator(operator, left, right)
-	
-	case left.Type() == object.RUNE_OBJ && right.Type() == object.RUNE_OBJ:
-		return evaluateByteInfixOperator(operator, left, right)
 	
 	case operator.Type == token.EQ:
 		return getBoolObject(left == right)
@@ -442,7 +441,7 @@ func evaluateIfExpression(
 	} else if ie.Alternative != nil {
 		return Evaluate(ie.Alternative, env)
 	} else {
-		return NULL
+		return object.NULL
 	}
 }
 
@@ -565,7 +564,7 @@ func applyFunction(
 		if result := fn.Function(args...); result != nil {
 			return result
 		}
-		return NULL
+		return object.NULL
 	default:
 		return newError("not a function: %s", fn.Type())
 	}
@@ -577,7 +576,7 @@ func evaluateArrayIndexExpression(array, index object.Object) object.Object {
 	maximum := int64(len(arrayObject.Elements) - 1)
 
 	if idx < 0 || idx > maximum {
-		return NULL
+		return object.NULL
 	}
 
 	return arrayObject.Elements[idx]
@@ -589,10 +588,10 @@ func evaluateStringIndexExpression(str, index object.Object) object.Object {
 	maximum := int64(len(strObj.Value) - 1)
 
 	if idx < 0 || idx > maximum {
-		return NULL
+		return object.NULL
 	}
 
-	return &object.Rune{Value: []rune(strObj.Value)[idx]}
+	return &object.String{Value: string(strObj.Value[idx])}
 }
 
 func evaluateHashIndexExpression(hash, index object.Object) object.Object {
@@ -605,7 +604,7 @@ func evaluateHashIndexExpression(hash, index object.Object) object.Object {
 	
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return NULL
+		return object.NULL
 	}
 
 	return pair.Value

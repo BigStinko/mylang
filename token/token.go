@@ -9,69 +9,68 @@ type Token struct {
 
 const (
 	ILLEGAL = "ILLEGAL"
-	EOF = "EOF"
+	EOF =     "EOF"
 	
 	// identifiers and literals
-	IDENT = "IDENT"
-	INT = "INT"
-	FLOAT = "FLOAT"
+	IDENT =  "IDENT"
+	INT =    "INT"
+	FLOAT =  "FLOAT"
 	STRING = "STRING"
-	BYTE = "BYTE"
 
 	// operators
-	ASSIGN = "="
-	PLUS = "+"
-	MINUS = "-"
-	BANG = "!"
+	ASSIGN =   "="
+	PLUS =     "+"
+	MINUS =    "-"
+	BANG =     "!"
 	ASTERISK = "*"
-	SLASH = "/"
-	LT = "<"
-	GT = ">"
-	EQ = "=="
-	NOT_EQ = "!="
-	MODULO = "%"
+	SLASH =    "/" 
+	LT =       "<"
+	GT =       ">"
+	EQ =       "=="
+	NOT_EQ =   "!="
+	MODULO =   "%"
 
 	// delimiters
-	COMMA = ","
-	SCOLON = ";"
-	COLON = ":"
-	OPAREN = "("
-	CPAREN = ")"
-	OBRACE = "{"
-	CBRACE = "}"
+	COMMA =    ","
+	SCOLON =   ";"
+	COLON =    ":"
+	OPAREN =   "("
+	CPAREN =   ")"
+	OBRACE =   "{"
+	CBRACE =   "}"
 	OBRACKET = "["
 	CBRACKET = "]"
 
 	// keywords
 	FUNCTION = "FUNCTION"
-	LET = "LET"
-	TRUE = "TRUE"
-	FALSE = "FALSE"
-	AND = "AND"
-	OR = "OR"
-	IF = "IF"
-	ELSE = "ELSE"
-	WHILE = "WHILE"
-	SWITCH = "SWTICH"
-	CASE = "CASE"
-	RETURN = "RETURN"
-	DEFAULT = "DEFAULT"
+	LET =      "LET"
+	TRUE =     "TRUE"
+	FALSE =    "FALSE"
+	AND =      "AND"
+	OR =       "OR"
+	IF =       "IF"
+	ELSE =     "ELSE"
+	WHILE =    "WHILE"
+	SWITCH =   "SWTICH"
+	CASE =     "CASE"
+	RETURN =   "RETURN"
+	DEFAULT =  "DEFAULT"
 )
 
 var keywords = map[string]TokenType{
-	"func": FUNCTION,
-	"let": LET,
-	"true": TRUE,
-	"false": FALSE,
-	"and": AND,
-	"or": OR,
-	"if": IF,
-	"else": ELSE,
-	"while": WHILE,
-	"switch": SWITCH,
-	"case": CASE,
+	"func":    FUNCTION,
+	"let":     LET,
+	"true":    TRUE,
+	"false":   FALSE,
+	"and":     AND,
+	"or":      OR,
+	"if":      IF,
+	"else":    ELSE,
+	"while":   WHILE,
+	"switch":  SWITCH,
+	"case":    CASE,
 	"default": DEFAULT,
-	"return": RETURN,
+	"return":  RETURN,
 }
 
 // if the identifier is a keyword, returns the keyword token
