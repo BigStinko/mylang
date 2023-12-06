@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"mylang/code"
 	"mylang/compiler"
 	"mylang/object"
@@ -87,9 +88,12 @@ func (vm *VM) Run() error {
 			code.OpSub,
 			code.OpMul,
 			code.OpDiv,
+			code.OpMod,
 			code.OpEqual,
 			code.OpNotEqual,
-			code.OpGreaterThan:
+			code.OpGreaterThan,
+			code.OpAnd,
+			code.OpOr:
 			err := vm.executeBinaryOperation(op) 
 			if err != nil {
 				return err
@@ -451,8 +455,14 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 	left := vm.pop()
 
 	switch {
+	case op == code.OpAnd:
+		return vm.push(getBoolObject(isTruthy(left) && isTruthy(right)))
+	case op == code.OpOr:
+		return vm.push(getBoolObject(isTruthy(left) || isTruthy(right)))
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return vm.executeBinaryIntegerOperation(op, left, right)
+	case left.Type() == object.FLOAT_OBJ && right.Type() == object.FLOAT_OBJ:
+		return  vm.executeBinaryFloatOperation(op, left, right)
 	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
 		return vm.executeBinaryStringOperation(op, left, right)
 	case op == code.OpEqual:
@@ -481,6 +491,8 @@ func (vm *VM) executeBinaryIntegerOperation(
 		return vm.push(&object.Integer{Value:leftValue * rightValue})
 	case code.OpDiv:
 		return vm.push(&object.Integer{Value:leftValue / rightValue})
+	case code.OpMod:
+		return vm.push(&object.Integer{Value:leftValue % rightValue})
 	case code.OpEqual:
 		return vm.push(getBoolObject(leftValue == rightValue))
 	case code.OpNotEqual:
@@ -489,6 +501,35 @@ func (vm *VM) executeBinaryIntegerOperation(
 		return vm.push(getBoolObject(leftValue > rightValue))
 	default:
 		return fmt.Errorf("unknown integer operator: %d", op)
+	}
+}
+
+func (vm *VM) executeBinaryFloatOperation(
+	op code.Opcode,
+	left, right object.Object,
+) error {
+	leftValue := left.(*object.Float).Value
+	rightValue := right.(*object.Float).Value
+
+	switch op {
+	case code.OpAdd:
+		return vm.push(&object.Float{Value:leftValue + rightValue})
+	case code.OpSub:
+		return vm.push(&object.Float{Value:leftValue - rightValue})
+	case code.OpMul:
+		return vm.push(&object.Float{Value:leftValue * rightValue})
+	case code.OpDiv:
+		return vm.push(&object.Float{Value:leftValue / rightValue})
+	case code.OpMod:
+		return vm.push(&object.Float{Value: math.Mod(leftValue, rightValue)})
+	case code.OpEqual:
+		return vm.push(getBoolObject(leftValue == rightValue))
+	case code.OpNotEqual:
+		return vm.push(getBoolObject(leftValue != rightValue))
+	case code.OpGreaterThan:
+		return vm.push(getBoolObject(leftValue > rightValue))
+	default:
+		return fmt.Errorf("unknown float operator: %d", op)
 	}
 }
 
@@ -515,6 +556,8 @@ func (vm *VM) executeIndexExpression(left, index object.Object) error {
 	switch {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
 		return vm.executeArrayIndex(left, index)
+	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
+		return vm.executeStringIndex(left, index)
 	case left.Type() == object.HASH_OBJ:
 		return vm.executeHashIndex(left, index)
 	default:
@@ -532,6 +575,18 @@ func (vm *VM) executeArrayIndex(array, index object.Object) error {
 	}
 
 	return vm.push(arrayObject.Elements[i])
+}
+
+func (vm *VM) executeStringIndex(str, index object.Object) error {
+	strObj := str.(*object.String)
+	idx := index.(*object.Integer).Value
+	maximum := int64(len(strObj.Value) - 1)
+
+	if idx < 0 || idx > maximum {
+		return vm.push(object.NULL)
+	}
+
+	return vm.push(&object.String{Value: string(strObj.Value[idx])})
 }
 
 func (vm *VM) executeHashIndex(hash, index object.Object) error {

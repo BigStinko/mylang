@@ -198,7 +198,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpNull)
 	
 	case *ast.SwitchExpression:
-
 		jumpPositions := []int{}
 
 		for _, choice := range node.Cases {
@@ -295,12 +294,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpMul)
 		case token.SLASH:
 			c.emit(code.OpDiv)
+		case token.MODULO:
+			c.emit(code.OpMod)
 		case token.GT:
 			c.emit(code.OpGreaterThan)
 		case token.EQ:
 			c.emit(code.OpEqual)
 		case token.NOT_EQ:
 			c.emit(code.OpNotEqual)
+		case token.AND:
+			c.emit(code.OpAnd)
+		case token.OR:
+			c.emit(code.OpOr)
 		default:
 			return fmt.Errorf("unkown operator %s", node.Operator)
 		}
