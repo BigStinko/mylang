@@ -36,11 +36,11 @@ func New(bytecode *compiler.Bytecode) *VM {
 	frames := make([]*Frame, MAXFRAMES)
 	frames[0] = mainFrame
 
-	elements := []string{}
+	/*elements := []string{}
 	for _, element := range bytecode.Constants {
 		elements = append(elements, element.Inspect())
 	}
-	fmt.Printf("%s\n", fmt.Sprint(elements))
+	fmt.Printf("%s\n", fmt.Sprint(elements))*/
 
 	return &VM{
 		constants: bytecode.Constants,
@@ -67,9 +67,9 @@ func (vm *VM) Run() error {
 		ins = vm.currentFrame().Instructions()
 		op = code.Opcode(ins[ip])
 
-		def, _ := code.Lookup(byte(op))
+		/*def, _ := code.Lookup(byte(op))
 		operands, _ := code.ReadOperands(def, ins)
-		fmt.Printf("%d: %04d %s\n", vm.framesIndex, ip, ins.FmtInstruction(def, operands))
+		fmt.Printf("%d: %04d %s\n", vm.framesIndex, ip, ins.FmtInstruction(def, operands))*/
 
 		switch op {
 		// when the compiler encounters a literal it replaces it with an

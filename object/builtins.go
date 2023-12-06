@@ -1,12 +1,14 @@
 package object
 
 import (
-	"fmt"
+	"bufio"
 	"bytes"
+	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
-	"bufio"
-	"os"
+	"strconv"
+	"time"
 )
 
 var (
@@ -23,7 +25,7 @@ var Builtins = []struct {
 		"len",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `len`. got=%d, want=1",
 					len(args))
 			}
 
@@ -36,8 +38,7 @@ var Builtins = []struct {
 				return newError("argument to `len` not supported, got %s",
 					args[0].Type())
 			}
-		},
-		},
+		}},
 	},
 	{
 		"puts",
@@ -47,14 +48,13 @@ var Builtins = []struct {
 			}
 
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"first",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `first`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != ARRAY_OBJ {
@@ -68,14 +68,13 @@ var Builtins = []struct {
 			}
 
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"last",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `last`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != ARRAY_OBJ {
@@ -90,14 +89,13 @@ var Builtins = []struct {
 			}
 
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"rest",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `rest`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != ARRAY_OBJ {
@@ -114,14 +112,13 @@ var Builtins = []struct {
 			}
 
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"push",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("wrong number of arguments. got=%d, want=2",
+				return newError("wrong number of arguments to `push`. got=%d, want=2",
 					len(args))
 			}
 			if args[0].Type() != ARRAY_OBJ {
@@ -137,14 +134,13 @@ var Builtins = []struct {
 			newElements[length] = args[1]
 
 			return &Array{Elements: newElements}
-		},
-		},
+		}},
 	},
 	{
 		"pop",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `pop`. got=%d, want=1",
 					len(args))
 			}
 			switch args[0].Type() {
@@ -175,26 +171,24 @@ var Builtins = []struct {
 				return newError("argument to `assign` must be ARRAY or STRING, got %s",
 					args[0].Type())
 			}
-		},
-		},
+		}},
 	},
 	{
 		"string",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `string`. got=%d, want=1",
 					len(args))
 			}
 
 			return &String{Value: args[0].Inspect()}
-		},
-		},
+		}},
 	},
 	{
 		"keys", 
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `keys`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != HASH_OBJ {
@@ -212,14 +206,13 @@ var Builtins = []struct {
 			}
 
 			return &Array{Elements: newElements}
-		},
-		},
+		}},
 	},
 	{
 		"delete", 
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("wrong number of arguments. got=%d, want=2",
+				return newError("wrong number of arguments to `delete`. got=%d, want=2",
 					len(args))
 			}
 			if args[0].Type() != HASH_OBJ {
@@ -239,14 +232,13 @@ var Builtins = []struct {
 			delete(hashObj.Pairs, hashKey)
 			
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"assign", 
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 3 {
-				return newError("wrong number of arguments. got=%d, want=3",
+				return newError("wrong number of arguments to `assign`. got=%d, want=3",
 					len(args))
 			}
 			switch args[0].Type() {
@@ -302,26 +294,24 @@ var Builtins = []struct {
 			}
 
 			return NULL
-		},
-		},
+		}},
 	},
 	{
 		"type",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `type`. got=%d, want=1",
 					len(args))
 			}
 			
 			return &String{Value: string(args[0].Type())}
-		},
-		},
+		}},
 	},
 	{
 		"command",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `command`. got=%d, want=1",
 					len(args))
 			}
 			str, ok := args[0].(*String)
@@ -369,14 +359,13 @@ var Builtins = []struct {
 			newHash[stderrKey.HashKey()] = stderrPair
 
 			return &Hash{Pairs: newHash}
-		},
-		},
+		}},
 	},
 	{
 		"open",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) > 2 || len(args) < 1{
-				return newError("wrong number of arguments. got=%d, want=2",
+				return newError("wrong number of arguments to `open`. got=%d, want=2",
 					len(args))
 			}
 			if args[0].Type() != STRING_OBJ {
@@ -418,15 +407,13 @@ var Builtins = []struct {
 			}
 
 			return fileObj
-		},
-		},
+		}},
 	},
-
 	{
 		"close",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `close`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != FILE_OBJ {
@@ -437,14 +424,13 @@ var Builtins = []struct {
 			file := args[0].(*File).Handle
 			file.Close()
 			return TRUE
-		},
-		},
+		}},
 	},
 	{
 		"read",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
+				return newError("wrong number of arguments to `read`. got=%d, want=1",
 					len(args))
 			}
 			if args[0].Type() != FILE_OBJ {
@@ -463,14 +449,13 @@ var Builtins = []struct {
 			}
 
 			return &String{Value: out}
-		},
-		},
+		}},
 	},
 	{
 		"write",
 		&Builtin{Function: func(args ...Object) Object {
 			if len(args) != 2 {
-				return newError("wrong number of arguments. got=%d, want=2",
+				return newError("wrong number of arguments to `write`. got=%d, want=2",
 					len(args))
 			}
 			if args[0].Type() != FILE_OBJ {
@@ -491,8 +476,7 @@ var Builtins = []struct {
 			}
 
 			return FALSE
-		},
-		},
+		}},
 	},
 	{
 		"remove",
@@ -514,8 +498,7 @@ var Builtins = []struct {
 			}
 
 			return TRUE
-		},
-		},
+		}},
 	},
 	{
 		"args",
@@ -543,8 +526,78 @@ var Builtins = []struct {
 				return newError("wrong number of arguments. got=%d, want 0 or 1",
 					len(args))
 			}
-		},
-		},
+		}},
+	},
+	{
+		"wait",
+		&Builtin{Function: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want 1",
+					len(args))
+			}
+			switch args[0].Type() {
+			case INTEGER_OBJ:
+				period := args[0].(*Integer).Value
+				time.Sleep(time.Duration(period) * time.Second)
+			case FLOAT_OBJ:
+				firstPeriod := args[0].(*Float).Value
+				period := int64(1000 * firstPeriod)
+				time.Sleep(time.Duration(period) * time.Millisecond)
+			default:
+				return newError("argument to `args` must be INTEGER or FLOAT. got=%q",
+					args[0].Type())
+			
+			}
+			return NULL
+		}},
+	},
+	{
+		"int",
+		&Builtin{Function: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments to `int`. got=%d, want 1",
+					len(args))
+			}
+			switch args[0].Type() {
+			case FLOAT_OBJ:
+				value := args[0].(*Float).Value
+				return &Integer{Value: int64(value)}
+			case STRING_OBJ:
+				value := args[0].(*String).Value
+				newValue, err := strconv.Atoi(value)
+				if err != nil {
+					return &Error{Message: err.Error()}
+				}
+				return &Integer{Value: int64(newValue)}
+			default:
+				return newError("argument to `int` must be FLOAT or STRING. got=%q",
+					args[0].Type())
+			}
+		}},
+	},
+	{
+		"float",
+		&Builtin{Function: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments to `float. got%d, want 1",
+					len(args))
+			}
+			switch args[0].Type() {
+			case INTEGER_OBJ:
+				value := args[0].(*Integer).Value
+				return &Float{Value: float64(value)}
+			case STRING_OBJ:
+				value := args[0].(*String).Value
+				newValue, err := strconv.ParseFloat(value, 64)
+				if err != nil {
+					return &Error{Message: err.Error()}
+				}
+				return &Float{Value: newValue}
+			default:
+				return newError("argument to `float` must be INTEGER or STRING. got=%q",
+					args[0].Type())
+			}
+		}},
 	},
 }
 
