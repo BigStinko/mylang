@@ -65,7 +65,7 @@ func main() {
 
 		err = machine.Run()
 		if err != nil {
-			fmt.Printf("virtual machine error: %s", err)
+			fmt.Printf("virtual machine error %s, at %s\n", err, machine.LastFrame())
 			return
 		}
 

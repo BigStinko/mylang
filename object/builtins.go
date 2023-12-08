@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"regexp"
@@ -320,7 +321,6 @@ var Builtins = []struct {
 					args[0].Type())
 			}
 
-			fmt.Print("run")
 			r := regexp.MustCompile(`[^\s"']+|"([^"]*)"|'([^']*)`)
 			res := r.FindAllString(str.Value, -1)
 
@@ -597,6 +597,12 @@ var Builtins = []struct {
 				return newError("argument to `float` must be INTEGER or STRING. got=%q",
 					args[0].Type())
 			}
+		}},
+	},
+	{
+		"rand",
+		&Builtin{Function: func(args ...Object) Object {
+			return &Float{Value: rand.Float64()}
 		}},
 	},
 }

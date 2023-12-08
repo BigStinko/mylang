@@ -22,3 +22,7 @@ func NewFrame(cl *object.Closure, bp int) *Frame {
 func (f *Frame) Instructions() code.Instructions {
 	return f.closure.Function.Instructions
 }
+
+func (f *Frame) ClosureName() string {
+	return f.closure.Function.Name
+}

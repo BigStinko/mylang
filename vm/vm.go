@@ -36,12 +36,6 @@ func New(bytecode *compiler.Bytecode) *VM {
 	frames := make([]*Frame, MAXFRAMES)
 	frames[0] = mainFrame
 
-	/*elements := []string{}
-	for _, element := range bytecode.Constants {
-		elements = append(elements, element.Inspect())
-	}
-	fmt.Printf("%s\n", fmt.Sprint(elements))*/
-
 	return &VM{
 		constants: bytecode.Constants,
 		
@@ -66,10 +60,6 @@ func (vm *VM) Run() error {
 		ip = vm.currentFrame().ip
 		ins = vm.currentFrame().Instructions()
 		op = code.Opcode(ins[ip])
-
-		/*def, _ := code.Lookup(byte(op))
-		operands, _ := code.ReadOperands(def, ins)
-		fmt.Printf("%d: %04d %s\n", vm.framesIndex, ip, ins.FmtInstruction(def, operands))*/
 
 		switch op {
 		// when the compiler encounters a literal it replaces it with an
@@ -199,7 +189,7 @@ func (vm *VM) Run() error {
 			frame := vm.popFrame()  // return to the outer frame
 			vm.sp = frame.basePointer - 1
 
-			err := vm.push(returnValue)  // replace function call with return value
+			err := vm.push(returnValue)  // replace closure with return value
 			if err != nil {
 				return err
 			}
@@ -258,7 +248,7 @@ func (vm *VM) Run() error {
 		// puts the object from the stack in the location given by the
 		// operand of the instruction on top of the stack
 		case code.OpGetLocal:
-			localIndex := int(uint8(ins[ip + 1]))
+				localIndex := int(uint8(ins[ip + 1]))
 			vm.currentFrame().ip += 1
 			frame := vm.currentFrame()
 
@@ -340,6 +330,16 @@ func (vm *VM) StackTop() object.Object {
 // returns the value that was most recently taken off the stack
 func (vm *VM) LastPoppedStackElement() object.Object {
 	return vm.stack[vm.sp]
+}
+
+func (vm *VM) LastFrame() string {
+	return vm.currentFrame().ClosureName()
+}
+
+func (vm *VM) DumpStack() {
+	for _, obj := range vm.stack {
+		fmt.Print(obj.Inspect() + "\n")
+	}
 }
 
 // puts the object on top of the stack and increments the stack pointer

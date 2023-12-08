@@ -9,25 +9,29 @@ import (
 )
 
 var builtins = map[string]*object.Builtin{
-	"len": object.GetBuiltinByName("len"),
-	"puts": object.GetBuiltinByName("puts"),
-	"first": object.GetBuiltinByName("first"),
-	"last": object.GetBuiltinByName("last"),
-	"rest": object.GetBuiltinByName("rest"),
-	"push": object.GetBuiltinByName("push"),
-	"pop": object.GetBuiltinByName("pop"),
-	"string": object.GetBuiltinByName("string"),
-	"keys": object.GetBuiltinByName("keys"),
-	"delete": object.GetBuiltinByName("delete"),
-	"assign": object.GetBuiltinByName("assign"),
-	"type": object.GetBuiltinByName("type"),
+	"len":     object.GetBuiltinByName("len"),
+	"puts":    object.GetBuiltinByName("puts"),
+	"first":   object.GetBuiltinByName("first"),
+	"last":    object.GetBuiltinByName("last"),
+	"rest":    object.GetBuiltinByName("rest"),
+	"push":    object.GetBuiltinByName("push"),
+	"pop":     object.GetBuiltinByName("pop"),
+	"string":  object.GetBuiltinByName("string"),
+	"keys":    object.GetBuiltinByName("keys"),
+	"delete":  object.GetBuiltinByName("delete"),
+	"assign":  object.GetBuiltinByName("assign"),
+	"type":    object.GetBuiltinByName("type"),
 	"command": object.GetBuiltinByName("command"),
-	"open": object.GetBuiltinByName("open"),
-	"close": object.GetBuiltinByName("close"),
-	"read": object.GetBuiltinByName("read"),
-	"write": object.GetBuiltinByName("write"),
-	"remove": object.GetBuiltinByName("remove"),
-	"args": object.GetBuiltinByName("args"),
+	"open":    object.GetBuiltinByName("open"),
+	"close":   object.GetBuiltinByName("close"),
+	"read":    object.GetBuiltinByName("read"),
+	"write":   object.GetBuiltinByName("write"),
+	"remove":  object.GetBuiltinByName("remove"),
+	"args":    object.GetBuiltinByName("args"),
+	"wait":    object.GetBuiltinByName("wait"),
+	"int":     object.GetBuiltinByName("int"),
+	"float":   object.GetBuiltinByName("float"),
+	"rand":    object.GetBuiltinByName("rand"),
 }
 
 // recursively evaluates every kind of node in the ast
@@ -283,6 +287,43 @@ func evaluatePrefixOperator(
 	}
 }
 
+// evaluates all general binary operators
+func evaluateInfixOperator(
+	operator token.Token,
+	left, right object.Object,
+) object.Object {
+	switch {
+	case operator.Type == token.AND:
+		return getBoolObject(isTruthy(left) && isTruthy(right))
+	
+	case operator.Type == token.OR:
+		return getBoolObject(isTruthy(left) || isTruthy(right))
+	
+	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
+		return evaluateIntegerInfixOperator(operator, left, right)
+	
+	case left.Type() == object.FLOAT_OBJ && right.Type() == object.FLOAT_OBJ:
+		return evaluateFloatInfixOperator(operator, left, right)
+	
+	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
+		return evaluateStringInfixOperator(operator, left, right)
+	
+	case operator.Type == token.EQ:
+		return getBoolObject(left == right)
+	
+	case operator.Type == token.NOT_EQ:
+		return getBoolObject(left != right)
+	
+	case left.Type() != right.Type():
+		return newError("type mismatch: %s %s %s",
+			left.Type(), operator.Literal, right.Type())
+	
+	default:
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator.Literal, right.Type())
+	}
+}
+
 // returns the universal bool objects from the input boolean
 func getBoolObject(input bool) *object.Boolean {
 	if input {
@@ -319,8 +360,7 @@ func evaluateIntegerInfixOperator(
 	case token.NOT_EQ:
 		return getBoolObject(leftValue != rightValue)
 	default:
-		return newError("unknown operator: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
+		return newError("unknown integer operator: %s", operator.Literal)
 	}
 }
 
@@ -352,8 +392,7 @@ func evaluateFloatInfixOperator(
 	case token.NOT_EQ:
 		return getBoolObject(leftValue != rightValue)
 	default:
-		return newError("unknown operator: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
+		return newError("unknown float operator: %s", operator.Literal)
 	}
 }
 
@@ -361,51 +400,18 @@ func evaluateStringInfixOperator(
 	operator token.Token,
 	left, right object.Object,
 ) object.Object {
-	if operator.Type != token.PLUS {
-		return newError("unknown operator: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
-	}
-
 	leftValue := left.(*object.String).Value
 	rightValue := right.(*object.String).Value
 
-	return &object.String{Value: leftValue + rightValue}
-}
-
-// evaluates all general binary operators
-func evaluateInfixOperator(
-	operator token.Token,
-	left, right object.Object,
-) object.Object {
-	switch {
-	case operator.Type == token.AND:
-		return getBoolObject(isTruthy(left) && isTruthy(right))
-	
-	case operator.Type == token.OR:
-		return getBoolObject(isTruthy(left) || isTruthy(right))
-	
-	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
-		return evaluateIntegerInfixOperator(operator, left, right)
-	
-	case left.Type() == object.FLOAT_OBJ && right.Type() == object.FLOAT_OBJ:
-		return evaluateFloatInfixOperator(operator, left, right)
-	
-	case left.Type() == object.STRING_OBJ && right.Type() == object.STRING_OBJ:
-		return evaluateStringInfixOperator(operator, left, right)
-	
-	case operator.Type == token.EQ:
-		return getBoolObject(left == right)
-	
-	case operator.Type == token.NOT_EQ:
-		return getBoolObject(left != right)
-	
-	case left.Type() != right.Type():
-		return newError("type mismatch: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
-	
+	switch operator.Type {
+	case token.PLUS:
+		return &object.String{Value: leftValue + rightValue}
+	case token.EQ:
+		return  getBoolObject(leftValue == rightValue)
+	case token.NOT_EQ:
+		return getBoolObject(leftValue != rightValue)
 	default:
-		return newError("unknown operator: %s %s %s",
-			left.Type(), operator.Literal, right.Type())
+		return newError("unkown string operator: %s", operator.Literal)
 	}
 }
 
@@ -449,7 +455,7 @@ func evaluateWhileExpression(
 	we *ast.WhileExpression,
 	env *object.Environment,
 ) object.Object {
-	returnValue := &object.Boolean{Value: true}
+	returnValue := object.NULL
 
 	for {
 		condition := Evaluate(we.Condition, env)
@@ -570,6 +576,19 @@ func applyFunction(
 	}
 }
 
+func evaluateIndexExpression(left, index object.Object) object.Object {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+		return evaluateArrayIndexExpression(left, index)
+	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
+		return evaluateStringIndexExpression(left, index)
+	case left.Type() == object.HASH_OBJ:
+		return evaluateHashIndexExpression(left, index)
+	default:
+		return newError("index operator not supported: %s", left.Type())
+	}
+}
+
 func evaluateArrayIndexExpression(array, index object.Object) object.Object {
 	arrayObject := array.(*object.Array)
 	idx := index.(*object.Integer).Value
@@ -608,19 +627,6 @@ func evaluateHashIndexExpression(hash, index object.Object) object.Object {
 	}
 
 	return pair.Value
-}
-
-func evaluateIndexExpression(left, index object.Object) object.Object {
-	switch {
-	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
-		return evaluateArrayIndexExpression(left, index)
-	case left.Type() == object.STRING_OBJ && index.Type() == object.INTEGER_OBJ:
-		return evaluateStringIndexExpression(left, index)
-	case left.Type() == object.HASH_OBJ:
-		return evaluateHashIndexExpression(left, index)
-	default:
-		return newError("index operator not supported: %s", left.Type())
-	}
 }
 
 func evaluateHashLiteral(
