@@ -42,6 +42,7 @@ func main() {
 		inputFile, err = os.ReadFile(*input)
 		if err != nil {
 			fmt.Printf("could not read: %s\n", err.Error())
+			return
 		}
 	}
 
